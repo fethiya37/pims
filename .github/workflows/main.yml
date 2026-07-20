@@ -1,4 +1,3 @@
-
 on: push
 name: 🚀 Deploy website on push
 jobs:
@@ -15,5 +14,3 @@ jobs:
          server: ims.glowethioturkiye.com
          sername: ims@ims.glowethioturkiye.com
          password: ${{ secrets.FTP_PASSWORD }}       
-
-          
