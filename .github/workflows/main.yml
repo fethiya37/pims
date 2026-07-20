@@ -13,4 +13,4 @@ jobs:
       with:
          server: ims.glowethioturkiye.com
          sername: ims@ims.glowethioturkiye.com
-         password: ${{ secrets.FTP_PASSWORD }}       
+         password: ${{ secrets.ftp_password }}       
