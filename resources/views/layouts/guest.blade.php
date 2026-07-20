@@ -19,10 +19,10 @@
 <body class="font-sans text-gray-900 antialiased">
     <div
         class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gradient-to-br from-blue-50 to-blue-100">
-        <div class="flex items-center gap-3">
+        <div>
             <a href="/" class="inline-flex items-center gap-3">
                 <img src="{{ asset('dist/img/primelogo.jpg') }}" alt="Logo"
-                    class="rounded-full w-40 h-20 object-contain">
+                    class=" w-auto h-20">
             </a>
         </div>
 
