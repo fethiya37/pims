@@ -19,12 +19,14 @@
 <body class="font-sans text-gray-900 antialiased">
     <div
         class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gradient-to-br from-blue-50 to-blue-100">
-        <div>
-            <a href="/" class="inline-flex items-center gap-3">
-                <img src="{{ asset('dist/img/primelogo.jpg') }}" alt="Logo"
-                    class=" w-auto h-20">
-            </a>
-        </div>
+      
+           
+            <div>
+                <a href="/">
+                    <img src="{{ asset('dist/img/primelogo.jpg') }}" alt="{{ config('app.name') }}" class="h-20 w-auto">
+                </a>
+            </div>
+       
 
         <div
             class="w-full sm:max-w-md mt-6 px-6 py-6 bg-white/95 backdrop-blur-sm shadow-xl  rounded-xl">
