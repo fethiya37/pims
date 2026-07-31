@@ -28,6 +28,7 @@
                                         <th>Email</th>
                                         <th>Current Role</th>
                                         <th>Location</th>
+                                        <th>Status</th>
                                         <th>Registration Date</th>
                                         <th>Set/Change</th>
                                         <th>Actions</th>
@@ -51,6 +52,19 @@
                                                     @endif
                                                 </td>
                                                 <td>{{ optional($user->location)->name ?? 'N/A' }}</td>
+                                                <td>
+                                                    @if($user->is_active)
+                                                        <span class="badge badge-success">Active</span>
+                                                    @else
+                                                        <span class="badge badge-danger">Inactive</span>
+                                                    @endif
+                                                    <form action="/toggle-active-{{ $user->id }}" method="POST" style="display:inline-block; margin-left:5px;">
+                                                        @csrf
+                                                        <button type="submit" class="btn btn-sm {{ $user->is_active ? 'btn-warning' : 'btn-success' }}">
+                                                            {{ $user->is_active ? 'Deactivate' : 'Activate' }}
+                                                        </button>
+                                                    </form>
+                                                </td>
                                                 <td>{{ $user->created_at->toDateString() }}</td>
                                                 <td>
                                                     <button type="button" class="btn btn-success btn-sm"
@@ -136,12 +150,27 @@
                                                                     </div>
 
                                                                     <div class="form-group">
+                                                                        <div class="icheck-primary">
+                                                                            <input type="checkbox" id="is_active_edit_{{ $user->id }}" name="is_active"
+                                                                                @if($user->is_active) checked @endif>
+                                                                            <label for="is_active_edit_{{ $user->id }}">Active</label>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="form-group">
                                                                         <label>New Password
                                                                             <small>(leave blank to keep current)</small>
                                                                         </label>
-                                                                        <input type="password" name="password"
-                                                                            class="form-control"
-                                                                            placeholder="New Password">
+                                                                        <div class="input-group">
+                                                                            <input type="password" name="password"
+                                                                                class="form-control password-field"
+                                                                                placeholder="New Password">
+                                                                            <div class="input-group-append">
+                                                                                <button class="btn btn-outline-secondary toggle-password" type="button">
+                                                                                    <i class="fas fa-eye"></i>
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
 
@@ -211,7 +240,7 @@
                                         @endforeach
                                     @else
                                         <tr>
-                                            <td colspan="8" class="text-center">No users found!</td>
+                                            <td colspan="9" class="text-center">No users found!</td>
                                         </tr>
                                     @endif
                                 </tbody>
@@ -275,9 +304,23 @@
                                         </div>
 
                                         <div class="form-group">
+                                            <div class="icheck-primary">
+                                                <input type="checkbox" id="is_active_add" name="is_active" checked>
+                                                <label for="is_active_add">Active</label>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
                                             <label>Password</label>
-                                            <input type="password" name="password" class="form-control"
-                                                placeholder="Password" required>
+                                            <div class="input-group">
+                                                <input type="password" name="password" class="form-control password-field"
+                                                    placeholder="Password" required>
+                                                <div class="input-group-append">
+                                                    <button class="btn btn-outline-secondary toggle-password" type="button">
+                                                        <i class="fas fa-eye"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -298,3 +341,22 @@
     </div>
 </section>
 @endsection
+
+@push('scripts')
+<script>
+$(function() {
+    // Password toggle functionality
+    $('.toggle-password').on('click', function() {
+        var input = $(this).closest('.input-group').find('.password-field');
+        var icon = $(this).find('i');
+        if (input.attr('type') === 'password') {
+            input.attr('type', 'text');
+            icon.removeClass('fa-eye').addClass('fa-eye-slash');
+        } else {
+            input.attr('type', 'password');
+            icon.removeClass('fa-eye-slash').addClass('fa-eye');
+        }
+    });
+});
+</script>
+@endpush

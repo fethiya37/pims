@@ -29,6 +29,28 @@ class PatientController extends Controller
         return back()->with('success', 'Patient added successfully.');
     }
 
+    public function edit($id)
+    {
+        $patient = Patient::findOrFail($id);
+        return response()->json($patient);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'full_name' => 'required|string|max:255',
+            'phone' => 'nullable|string|max:50',
+        ]);
+
+        $patient = Patient::findOrFail($id);
+        $patient->update([
+            'full_name' => $request->full_name,
+            'phone' => $request->phone,
+        ]);
+
+        return back()->with('success', 'Patient updated successfully.');
+    }
+
     public function destroy($id)
     {
         $patient = Patient::findOrFail($id);

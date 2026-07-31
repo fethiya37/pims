@@ -64,8 +64,8 @@
                         <div class="col-md-4">
                             <select name="location_id" class="form-control select2" onchange="this.form.submit()">
                                 <option value="">All Locations</option>
-                                @foreach ($locations as $location)
-                                    <option value="{{ $location->id }}" {{ request('location_id') == $location->id ? 'selected' : '' }}>
+                                @foreach ($allowedLocations as $location)
+                                    <option value="{{ $location->id }}" {{ $locationId == $location->id ? 'selected' : '' }}>
                                         {{ $location->name }}
                                     </option>
                                 @endforeach

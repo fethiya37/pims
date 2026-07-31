@@ -25,8 +25,8 @@
                         <div class="col-md-3">
                             <select name="from_location_id" class="form-control select2" onchange="this.form.submit()">
                                 <option value="">From Any</option>
-                                @foreach ($locations as $location)
-                                    <option value="{{ $location->id }}" {{ request('from_location_id') == $location->id ? 'selected' : '' }}>
+                                @foreach ($allowedLocations as $location)
+                                    <option value="{{ $location->id }}" {{ $fromLocationId == $location->id ? 'selected' : '' }}>
                                         {{ $location->name }}
                                     </option>
                                 @endforeach
@@ -35,8 +35,8 @@
                         <div class="col-md-3">
                             <select name="to_location_id" class="form-control select2" onchange="this.form.submit()">
                                 <option value="">To Any</option>
-                                @foreach ($locations as $location)
-                                    <option value="{{ $location->id }}" {{ request('to_location_id') == $location->id ? 'selected' : '' }}>
+                                @foreach ($allowedLocations as $location)
+                                    <option value="{{ $location->id }}" {{ $toLocationId == $location->id ? 'selected' : '' }}>
                                         {{ $location->name }}
                                     </option>
                                 @endforeach
@@ -103,6 +103,7 @@ $(function() {
         lengthChange: false,
         autoWidth: false,
         pageLength: 20,
+        order: [[0, 'desc']],
         buttons: ["csv","excel","pdf","print"]
     });
     dt.buttons().container().appendTo('#transfer_table_wrapper .col-md-6:eq(0)');

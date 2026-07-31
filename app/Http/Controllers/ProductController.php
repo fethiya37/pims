@@ -9,6 +9,7 @@ use App\Models\OpeningQuantity;
 use App\Models\StockBatch;
 use App\Models\InventoryTransaction;
 use App\Models\ProductLocationSetting;
+use App\Models\ProductSequence;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,16 @@ use Illuminate\View\View;
 
 class ProductController extends Controller
 {
+    private function generateItemCode()
+    {
+        return DB::transaction(function () {
+            $sequence = ProductSequence::lockForUpdate()->first();
+            $nextNumber = $sequence->last_number + 1;
+            $sequence->update(['last_number' => $nextNumber]);
+            return 'PRD-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        });
+    }
+
     public function index(): View
     {
         $products = Product::orderBy('id', 'desc')->with(['category', 'openingQuantities.location'])->get();
@@ -65,7 +76,6 @@ class ProductController extends Controller
         foreach ($request->reorder_levels as $level) {
             $reorderQuantity = $level['reorder_quantity'];
 
-            // If product is pack type, convert packs to units
             if ($product->packaging_type === 'pack' && $product->default_pack_size > 0) {
                 $reorderQuantity = $reorderQuantity * $product->default_pack_size;
             }
@@ -88,7 +98,6 @@ class ProductController extends Controller
     public function addProduct(Request $request)
     {
         $request->validate([
-            'item_code' => 'required|string|unique:products,item_code',
             'name' => 'required|string|max:255',
             'category_id' => 'nullable|exists:categories,id',
             'unit' => 'nullable|string|max:50',
@@ -99,8 +108,10 @@ class ProductController extends Controller
         ]);
 
         try {
+            $itemCode = $this->generateItemCode();
+
             Product::create([
-                'item_code' => $request->item_code,
+                'item_code' => $itemCode,
                 'name' => $request->name,
                 'category_id' => $request->category_id,
                 'unit' => $request->unit,
@@ -110,7 +121,7 @@ class ProductController extends Controller
                 'packaging_type' => $request->packaging_type ?? 'unit',
             ]);
 
-            return back()->with('success', 'Product added successfully.');
+            return back()->with('success', 'Product added successfully. Code: ' . $itemCode);
         } catch (\Exception $e) {
             return back()->withErrors('Error adding product: ' . $e->getMessage());
         }

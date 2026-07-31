@@ -33,8 +33,8 @@
                             <div class="col-md-3">
                                 <select name="location_id" class="form-control select2" onchange="this.form.submit()">
                                     <option value="">All Locations</option>
-                                    @foreach ($locations as $location)
-                                        <option value="{{ $location->id }}" {{ request('location_id') == $location->id ? 'selected' : '' }}>
+                                    @foreach ($allowedLocations as $location)
+                                        <option value="{{ $location->id }}" {{ $locationId == $location->id ? 'selected' : '' }}>
                                             {{ $location->name }}
                                         </option>
                                     @endforeach
@@ -160,16 +160,23 @@
 <script>
 $(function() {
     $('.select2').select2();
-    ['#detail_table', '#top_table'].forEach(function(id) {
-        const dt = $(id).DataTable({
-            responsive: true,
-            lengthChange: false,
-            autoWidth: false,
-            pageLength: 20,
-            buttons: ["csv","excel","pdf","print"]
-        });
-        dt.buttons().container().appendTo(`${id}_wrapper .col-md-6:eq(0)`);
-    });
+    $('#detail_table').DataTable({
+        responsive: true,
+        lengthChange: false,
+        autoWidth: false,
+        pageLength: 20,
+        order: [[0, 'desc']],
+        buttons: ["csv","excel","pdf","print"]
+    }).buttons().container().appendTo('#detail_table_wrapper .col-md-6:eq(0)');
+
+    $('#top_table').DataTable({
+        responsive: true,
+        lengthChange: false,
+        autoWidth: false,
+        pageLength: 20,
+        buttons: ["csv","excel","pdf","print"]
+    }).buttons().container().appendTo('#top_table_wrapper .col-md-6:eq(0)');
+
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
         $('input[name="active_tab"]').val($(e.target).attr('href').replace('#', ''));
         $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();

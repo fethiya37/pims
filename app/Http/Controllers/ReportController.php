@@ -13,67 +13,98 @@ use App\Models\ProductSaleItem;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class ReportController extends Controller
 {
+    private function getAllowedLocationIds()
+    {
+        $user = Auth::user();
+        if ($user->role && $user->role->role_name === 'Super Admin') {
+            return Location::pluck('id')->toArray();
+        }
+        return [$user->location_id];
+    }
+
+    private function getLocationsForDropdown()
+    {
+        $ids = $this->getAllowedLocationIds();
+        return Location::whereIn('id', $ids)->orderBy('name')->get();
+    }
+
     public function stockBalance(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $productId = $request->product_id;
         $locationId = $request->location_id;
         $activeTab = $request->active_tab ?? 'overall';
 
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        } else {
+            if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
+                $locationId = null;
+            }
+        }
+
         $overallBalances = collect();
         $locationBalances = collect();
         $batchBalances = collect();
 
-        if ($request->has('product_id')) {
-            $query = StockBatch::with(['product', 'location']);
+        if ($request->has('product_id') || !empty($locationId)) {
+            $query = StockBatch::with(['product', 'location'])
+                ->whereIn('location_id', $allowedLocationIds);
 
             if (!empty($productId)) {
                 $query->where('product_id', $productId);
             }
-
             if (!empty($locationId)) {
                 $query->where('location_id', $locationId);
             }
 
             $batchBalances = $query->orderBy('product_id')->orderBy('location_id')->get();
 
-            // Overall balances with pack breakdown
-            $overallBalances = StockBatch::select(
+            $overallQuery = StockBatch::select(
                 'product_id',
                 DB::raw('SUM(quantity) as total_quantity')
             )
+                ->whereIn('location_id', $allowedLocationIds)
                 ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
                 ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
                 ->groupBy('product_id')
-                ->with('product')
-                ->get()
-                ->map(function ($item) {
-                    return $this->addPackBreakdown($item, $item->product);
-                });
+                ->with('product');
 
-            // Location balances with pack breakdown
-            $locationBalances = StockBatch::select(
+            $overallBalances = $overallQuery->get()->map(function ($item) {
+                return $this->addPackBreakdown($item, $item->product);
+            });
+
+            $locationQuery = StockBatch::select(
                 'product_id',
                 'location_id',
                 DB::raw('SUM(quantity) as total_quantity')
             )
+                ->whereIn('location_id', $allowedLocationIds)
                 ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
                 ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
                 ->groupBy('product_id', 'location_id')
-                ->with(['product', 'location'])
-                ->get()
-                ->map(function ($item) {
-                    return $this->addPackBreakdown($item, $item->product);
-                });
+                ->with(['product', 'location']);
 
-            // Batch balances – each batch already has quantity
+            $locationBalances = $locationQuery->get()->map(function ($item) {
+                return $this->addPackBreakdown($item, $item->product);
+            });
+
             $batchBalances = $batchBalances->map(function ($batch) {
                 return $this->addPackBreakdown($batch, $batch->product);
             });
@@ -81,20 +112,22 @@ class ReportController extends Controller
 
         return view('pages.reports.stock_balance', compact(
             'products',
-            'locations',
             'overallBalances',
             'locationBalances',
             'batchBalances',
             'activeTab',
             'productId',
-            'locationId'
+            'locationId',
+            'allowedLocations'
         ));
     }
 
     public function interLocationTransfer(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $fromDate = $request->from_date ?? now()->subMonth()->format('Y-m-d');
         $toDate = $request->to_date ?? now()->format('Y-m-d');
@@ -102,12 +135,29 @@ class ReportController extends Controller
         $fromTs = Carbon::parse($fromDate)->startOfDay();
         $toTs = Carbon::parse($toDate)->addDay()->startOfDay();
 
+        $fromLocationId = $request->from_location_id;
+        $toLocationId = $request->to_location_id;
+        $productId = $request->product_id;
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (!empty($fromLocationId) && !in_array($fromLocationId, $allowedLocationIds)) {
+                $fromLocationId = null;
+            }
+            if (!empty($toLocationId) && !in_array($toLocationId, $allowedLocationIds)) {
+                $toLocationId = null;
+            }
+        }
+
         $transfers = InventoryTransaction::with(['product', 'fromLocation', 'toLocation', 'user'])
             ->where('transaction_type', 'transfer')
             ->whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('product_id'), fn($q) => $q->where('product_id', $request->product_id))
-            ->when($request->filled('from_location_id'), fn($q) => $q->where('from_location_id', $request->from_location_id))
-            ->when($request->filled('to_location_id'), fn($q) => $q->where('to_location_id', $request->to_location_id))
+            ->where(function ($query) use ($allowedLocationIds) {
+                $query->whereIn('from_location_id', $allowedLocationIds)
+                    ->orWhereIn('to_location_id', $allowedLocationIds);
+            })
+            ->when($productId, fn($q) => $q->where('product_id', $productId))
+            ->when($fromLocationId, fn($q) => $q->where('from_location_id', $fromLocationId))
+            ->when($toLocationId, fn($q) => $q->where('to_location_id', $toLocationId))
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($txn) {
@@ -117,17 +167,21 @@ class ReportController extends Controller
         return view('pages.reports.inter_location_transfer', compact(
             'transfers',
             'products',
-            'locations',
             'fromDate',
-            'toDate'
+            'toDate',
+            'fromLocationId',
+            'toLocationId',
+            'allowedLocations'
         ));
     }
 
     public function treatmentConsumption(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
         $patients = Patient::orderBy('full_name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $fromDate = $request->from_date ?? now()->subMonth()->format('Y-m-d');
         $toDate = $request->to_date ?? now()->format('Y-m-d');
@@ -135,19 +189,35 @@ class ReportController extends Controller
         $fromTs = Carbon::parse($fromDate)->startOfDay();
         $toTs = Carbon::parse($toDate)->addDay()->startOfDay();
 
+        $locationId = $request->location_id;
+        $patientId = $request->patient_id;
+        $productId = $request->product_id;
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        }
+
         $consumptions = TreatmentConsumption::with(['patient', 'location', 'doctor', 'items.product'])
+            ->whereIn('location_id', $allowedLocationIds)
             ->whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('patient_id'), fn($q) => $q->where('patient_id', $request->patient_id))
-            ->when($request->filled('location_id'), fn($q) => $q->where('location_id', $request->location_id))
-            ->when($request->filled('product_id'), function ($q) use ($request) {
-                $q->whereHas('items', fn($sub) => $sub->where('product_id', $request->product_id));
+            ->when($patientId, fn($q) => $q->where('patient_id', $patientId))
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
+            ->when($productId, function ($q) use ($productId) {
+                $q->whereHas('items', fn($sub) => $sub->where('product_id', $productId));
             })
             ->orderByDesc('created_at')
             ->get();
 
-        $summary = TreatmentConsumption::whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('patient_id'), fn($q) => $q->where('patient_id', $request->patient_id))
-            ->when($request->filled('location_id'), fn($q) => $q->where('location_id', $request->location_id))
+        $summary = TreatmentConsumption::whereIn('location_id', $allowedLocationIds)
+            ->whereBetween('created_at', [$fromTs, $toTs])
+            ->when($patientId, fn($q) => $q->where('patient_id', $patientId))
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
             ->select(
                 DB::raw('COUNT(id) as total_treatments'),
                 DB::raw('SUM((
@@ -161,17 +231,20 @@ class ReportController extends Controller
             'consumptions',
             'products',
             'patients',
-            'locations',
             'fromDate',
             'toDate',
-            'summary'
+            'summary',
+            'locationId',
+            'allowedLocations'
         ));
     }
 
     public function salesReport(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $fromDate = $request->from_date ?? now()->subMonth()->format('Y-m-d');
         $toDate = $request->to_date ?? now()->format('Y-m-d');
@@ -179,17 +252,32 @@ class ReportController extends Controller
         $fromTs = Carbon::parse($fromDate)->startOfDay();
         $toTs = Carbon::parse($toDate)->addDay()->startOfDay();
 
+        $locationId = $request->location_id;
+        $productId = $request->product_id;
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        }
+
         $sales = ProductSale::with(['location', 'user', 'items.product'])
+            ->whereIn('location_id', $allowedLocationIds)
             ->whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('location_id'), fn($q) => $q->where('location_id', $request->location_id))
-            ->when($request->filled('product_id'), function ($q) use ($request) {
-                $q->whereHas('items', fn($sub) => $sub->where('product_id', $request->product_id));
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
+            ->when($productId, function ($q) use ($productId) {
+                $q->whereHas('items', fn($sub) => $sub->where('product_id', $productId));
             })
             ->orderByDesc('created_at')
             ->get();
 
-        $summary = ProductSale::whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('location_id'), fn($q) => $q->where('location_id', $request->location_id))
+        $summary = ProductSale::whereIn('location_id', $allowedLocationIds)
+            ->whereBetween('created_at', [$fromTs, $toTs])
+            ->when($locationId, fn($q) => $q->where('location_id', $locationId))
             ->select(
                 DB::raw('COUNT(id) as total_sales'),
                 DB::raw('SUM(total_amount) as total_revenue'),
@@ -203,13 +291,14 @@ class ReportController extends Controller
             DB::raw('SUM(quantity) as total_quantity'),
             DB::raw('SUM(line_total) as total_revenue')
         )
-            ->whereHas('sale', function ($q) use ($fromTs, $toTs, $request) {
-                $q->whereBetween('created_at', [$fromTs, $toTs]);
-                if ($request->filled('location_id')) {
-                    $q->where('location_id', $request->location_id);
+            ->whereHas('sale', function ($q) use ($fromTs, $toTs, $locationId, $allowedLocationIds) {
+                $q->whereIn('location_id', $allowedLocationIds)
+                    ->whereBetween('created_at', [$fromTs, $toTs]);
+                if ($locationId) {
+                    $q->where('location_id', $locationId);
                 }
             })
-            ->when($request->filled('product_id'), fn($q) => $q->where('product_id', $request->product_id))
+            ->when($productId, fn($q) => $q->where('product_id', $productId))
             ->groupBy('product_id')
             ->with('product')
             ->orderByDesc('total_revenue')
@@ -219,18 +308,21 @@ class ReportController extends Controller
         return view('pages.reports.sales_report', compact(
             'sales',
             'products',
-            'locations',
             'fromDate',
             'toDate',
             'summary',
-            'topProducts'
+            'topProducts',
+            'locationId',
+            'allowedLocations'
         ));
     }
 
     public function transactionReport(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $fromDate = $request->from_date ?? now()->subMonth()->format('Y-m-d');
         $toDate = $request->to_date ?? now()->format('Y-m-d');
@@ -238,12 +330,30 @@ class ReportController extends Controller
         $fromTs = Carbon::parse($fromDate)->startOfDay();
         $toTs = Carbon::parse($toDate)->addDay()->startOfDay();
 
+        $fromLocationId = $request->from_location_id;
+        $toLocationId = $request->to_location_id;
+        $productId = $request->product_id;
+        $transactionType = $request->transaction_type;
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (!empty($fromLocationId) && !in_array($fromLocationId, $allowedLocationIds)) {
+                $fromLocationId = null;
+            }
+            if (!empty($toLocationId) && !in_array($toLocationId, $allowedLocationIds)) {
+                $toLocationId = null;
+            }
+        }
+
         $transactions = InventoryTransaction::with(['product', 'fromLocation', 'toLocation', 'user'])
             ->whereBetween('created_at', [$fromTs, $toTs])
-            ->when($request->filled('product_id'), fn($q) => $q->where('product_id', $request->product_id))
-            ->when($request->filled('from_location_id'), fn($q) => $q->where('from_location_id', $request->from_location_id))
-            ->when($request->filled('to_location_id'), fn($q) => $q->where('to_location_id', $request->to_location_id))
-            ->when($request->filled('transaction_type'), fn($q) => $q->where('transaction_type', $request->transaction_type))
+            ->where(function ($query) use ($allowedLocationIds) {
+                $query->whereIn('from_location_id', $allowedLocationIds)
+                    ->orWhereIn('to_location_id', $allowedLocationIds);
+            })
+            ->when($productId, fn($q) => $q->where('product_id', $productId))
+            ->when($fromLocationId, fn($q) => $q->where('from_location_id', $fromLocationId))
+            ->when($toLocationId, fn($q) => $q->where('to_location_id', $toLocationId))
+            ->when($transactionType, fn($q) => $q->where('transaction_type', $transactionType))
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($txn) {
@@ -253,22 +363,38 @@ class ReportController extends Controller
         return view('pages.reports.transaction_report', compact(
             'transactions',
             'products',
-            'locations',
             'fromDate',
-            'toDate'
+            'toDate',
+            'fromLocationId',
+            'toLocationId',
+            'transactionType',
+            'allowedLocations'
         ));
     }
 
     public function lowStockReport(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $productId = $request->product_id;
         $locationId = $request->location_id;
 
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        }
+
         $lowStockItems = collect();
         $settings = ProductLocationSetting::with(['product', 'location'])
+            ->whereIn('location_id', $allowedLocationIds)
             ->when($productId, fn($q) => $q->where('product_id', $productId))
             ->when($locationId, fn($q) => $q->where('location_id', $locationId))
             ->get();
@@ -314,23 +440,36 @@ class ReportController extends Controller
         return view('pages.reports.low_stock', compact(
             'lowStockItems',
             'products',
-            'locations',
             'productId',
-            'locationId'
+            'locationId',
+            'allowedLocations'
         ));
     }
 
     public function expiryReport(Request $request): View
     {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
         $products = Product::orderBy('name')->get();
-        $locations = Location::orderBy('name')->get();
 
         $productId = $request->product_id;
         $locationId = $request->location_id;
 
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        }
+
         $today = Carbon::today();
 
         $expiryItems = StockBatch::with(['product', 'location'])
+            ->whereIn('location_id', $allowedLocationIds)
             ->where('quantity', '>', 0)
             ->whereNotNull('expiry_date')
             ->when($productId, fn($q) => $q->where('product_id', $productId))
@@ -363,20 +502,13 @@ class ReportController extends Controller
         return view('pages.reports.expiry_report', compact(
             'expiryItems',
             'products',
-            'locations',
             'summary',
             'productId',
-            'locationId'
+            'locationId',
+            'allowedLocations'
         ));
     }
 
-    /**
-     * Helper to add pack breakdown fields to a model object.
-     *
-     * @param mixed $item
-     * @param Product|null $product
-     * @return mixed
-     */
     private function addPackBreakdown($item, $product = null)
     {
         if (!$product) {

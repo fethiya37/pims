@@ -17,37 +17,19 @@ class UserSeeder extends Seeder
         $mainStoreManagerRole = Role::where('role_name', 'Main Store Manager')->first();
 
         $mainStore = Location::where('name', 'Main Store')->first();
-        $dispensary = Location::where('name', 'Dispensary')->first();
 
         User::create([
             'name' => 'Admin User',
             'email' => 'admin@admin.com',
             'password' => Hash::make('admin123'),
             'role_id' => $superAdminRole->id,
-            'isActive' => true,
+            'is_active' => true,
             'phone' => '0911027667',
             'location_id' => $mainStore->id ?? null,
         ]);
 
-        User::create([
-            'name' => 'Dispensary Manager',
-            'email' => 'dispensary@clinic.com',
-            'password' => Hash::make('password'),
-            'role_id' => $dispensaryManagerRole->id,
-            'isActive' => true,
-            'phone' => '0911027668',
-            'location_id' => $dispensary->id ?? null,
-        ]);
-
-        User::create([
-            'name' => 'Main Store Manager',
-            'email' => 'main@clinic.com',
-            'password' => Hash::make('password'),
-            'role_id' => $mainStoreManagerRole->id,
-            'isActive' => true,
-            'phone' => '0911027669',
-            'location_id' => $mainStore->id ?? null,
-        ]);
+       
+        
 
       
     }

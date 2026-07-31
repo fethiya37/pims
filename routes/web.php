@@ -82,15 +82,17 @@ Route::controller(InventoryAdjustmentController::class)
 
 Route::controller(CategoryController::class)
     ->middleware(['auth', 'verified', 'isSetRole'])->group(function () {
-        Route::post('/add-category', 'addCategory');
-        Route::post('/edit-category-{id}', 'editCategory');
-        Route::get('delete-category-{id}', 'deleteCategory');
+        Route::post('/add-category', 'addCategory')->name('add-category');
+        Route::post('/edit-category-{id}', 'editCategory')->name('edit-category');
+        Route::get('delete-category-{id}', 'deleteCategory')->name('delete-category');
     });
 
 Route::controller(PatientController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_patients'])->group(function () {
         Route::get('/patients', 'index')->name('patients.index');
         Route::post('/patients', 'store')->name('patients.store');
+        Route::get('/patients/{id}/edit', 'edit')->name('patients.edit');
+        Route::put('/patients/{id}', 'update')->name('patients.update');
         Route::delete('/patients/{id}', 'destroy')->name('patients.destroy');
     });
 
@@ -118,6 +120,7 @@ Route::controller(UserController::class)
         Route::post('/add-user', 'addUser');
         Route::post('/editUser-{id}', 'editUser');
         Route::get('/delete-user-{id}', 'deleteUser');
+        Route::post('/toggle-active-{id}', 'toggleActive');
     });
 
 Route::controller(RoleController::class)

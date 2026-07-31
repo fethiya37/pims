@@ -33,7 +33,7 @@
                             <div class="col-md-3">
                                 <select name="location_id" class="form-control select2" onchange="this.form.submit()">
                                     <option value="">All Locations</option>
-                                    @foreach ($locations as $location)
+                                    @foreach ($allowedLocations as $location)
                                         <option value="{{ $location->id }}" {{ $locationId == $location->id ? 'selected' : '' }}>
                                             {{ $location->name }}
                                         </option>

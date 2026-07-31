@@ -88,7 +88,6 @@
                                         </td>
                                         <td>
                                             @if ($transfer->status == 'pending')
-                                                {{-- Edit and Delete are always shown if user can see the transfer --}}
                                                 <a type="button" class="btn btn-info btn-sm" data-toggle="modal"
                                                     data-target="#editTransferModal-{{ $transfer->id }}">
                                                     <i class="fas fa-edit"></i>
@@ -99,7 +98,6 @@
                                                     <i class="fas fa-trash"></i>
                                                 </a>
 
-                                                {{-- Approve & Reject: only if user is from the source location (from_location) --}}
                                                 @if ($isSuperAdmin || Auth::user()->location_id == $transfer->from_location_id)
                                                     <a href="{{ route('inventory-transfers.approve', $transfer->id) }}"
                                                         class="btn btn-success btn-sm"
@@ -114,7 +112,6 @@
                                             @endif
 
                                             @if ($transfer->status == 'approved')
-                                                {{-- Issue: only if user is from the source location --}}
                                                 @if ($isSuperAdmin || Auth::user()->location_id == $transfer->from_location_id)
                                                     <a href="{{ route('inventory-transfers.issue', $transfer->id) }}"
                                                         class="btn btn-primary btn-sm"
@@ -125,7 +122,6 @@
                                             @endif
 
                                             @if ($transfer->status == 'issued')
-                                                {{-- Receive: only if user is from the destination location --}}
                                                 @if ($isSuperAdmin || Auth::user()->location_id == $transfer->to_location_id)
                                                     <a href="{{ route('inventory-transfers.receive', $transfer->id) }}"
                                                         class="btn btn-success btn-sm"
@@ -135,7 +131,6 @@
                                                 @endif
                                             @endif
 
-                                            {{-- View button always visible --}}
                                             <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal"
                                                 data-target="#viewTransferModal-{{ $transfer->id }}">
                                                 <i class="fas fa-eye"></i>
@@ -651,156 +646,121 @@
                     });
                 }
 
-                var createRows = document.querySelectorAll('#add_items tr');
-                createRows.forEach(function(row) { initRow(row); });
-
-                document.querySelector('.add-row')?.addEventListener('click', function(e) {
-                    var btn = e.currentTarget;
-                    var rowCount = document.querySelectorAll('#add_items tr').length;
-
-                    document.querySelectorAll('#add_items .add-row').forEach(function(el) { el.remove(); });
-
-                    var newRow = document.createElement('tr');
-                    var opts = '<option value="">Select</option>';
-                    products.forEach(function(p) {
-                        opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
-                    });
-
-                    newRow.innerHTML = `
-                        <td style="width: 180px;">
-                            <select name="items[${rowCount}][product_id]" class="form-control product-select" required>
-                                ${opts}
-                            </select>
-                        </td>
-                        <td>
-                            <input type="number" name="items[${rowCount}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
-                        </td>
-                        <td>
-                            <input type="number" name="items[${rowCount}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
-                        </td>
-                        <td>
-                            <input type="text" class="form-control pack-size-display" value="0" readonly>
-                        </td>
-                        <td>
-                            <input type="text" name="items[${rowCount}][quantity]" class="form-control quantity-display" readonly>
-                        </td>
-                        <td>
-                            <div class="d-flex">
-                                <button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button>
-                                <button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button>
-                            </div>
-                        </td>
-                    `;
-                    document.getElementById('add_items').appendChild(newRow);
-                    initRow(newRow);
-                });
-
-                document.addEventListener('click', function(e) {
-                    var target = e.target.closest('.remove-tr');
-                    if (!target) return;
-                    var rows = document.querySelectorAll('#add_items tr');
-                    if (rows.length > 1) {
-                        target.closest('tr').remove();
-                        var lastRow = document.querySelector('#add_items tr:last');
-                        if (lastRow && !lastRow.querySelector('.add-row')) {
-                            var td = lastRow.querySelector('td:last-child');
-                            if (td) {
-                                td.innerHTML = `
-                                    <div class="d-flex">
-                                        <button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button>
-                                        <button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button>
-                                    </div>
-                                `;
-                            }
-                        }
-                    } else {
-                        alert('You must have at least one product.');
-                    }
-                });
-
-                function setupEditRows(containerId) {
-                    var container = document.getElementById(containerId);
-                    if (!container) return;
-                    var rows = container.querySelectorAll('tr');
-                    rows.forEach(function(row) {
-                        var packagesInput = row.querySelector('.packages-input');
-                        var extraInput = row.querySelector('.extra-input');
-                        var productSelect = row.querySelector('.product-select');
-
-                        if (packagesInput) packagesInput.addEventListener('input', function() { updateQuantity(row); });
-                        if (extraInput) extraInput.addEventListener('input', function() { updateQuantity(row); });
-                        if (productSelect) productSelect.addEventListener('change', function() {
-                            updatePackSize(row);
-                            updatePackagesDisabled(row);
-                            updateQuantity(row);
+                // ---- DELEGATED EVENTS FOR CREATE MODAL ----
+                document.getElementById('add_items').addEventListener('click', function(e) {
+                    var target = e.target.closest('.add-row');
+                    if (target) {
+                        e.preventDefault();
+                        var tbody = target.closest('tbody');
+                        var rowCount = tbody.querySelectorAll('tr').length;
+                        var newRow = document.createElement('tr');
+                        var opts = '<option value="">Select</option>';
+                        products.forEach(function(p) {
+                            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
                         });
-                    });
-                }
+                        newRow.innerHTML = `
+                            <td style="width: 180px;">
+                                <select name="items[${rowCount}][product_id]" class="form-control product-select" required>
+                                    ${opts}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" name="items[${rowCount}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
+                            </td>
+                            <td>
+                                <input type="number" name="items[${rowCount}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control pack-size-display" value="0" readonly>
+                            </td>
+                            <td>
+                                <input type="text" name="items[${rowCount}][quantity]" class="form-control quantity-display" readonly>
+                            </td>
+                            <td>
+                                <div class="d-flex">
+                                    <button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button>
+                                    <button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button>
+                                </div>
+                            </td>
+                        `;
+                        tbody.appendChild(newRow);
+                        initRow(newRow);
+                    }
 
-                document.addEventListener('shown.bs.modal', function(e) {
-                    var modal = e.target;
-                    if (modal.id && modal.id.startsWith('editTransferModal-')) {
-                        var receiptId = modal.id.replace('editTransferModal-', '');
-                        var containerId = 'edit_items_' + receiptId;
-                        setupEditRows(containerId);
+                    var removeTarget = e.target.closest('.remove-tr');
+                    if (removeTarget) {
+                        e.preventDefault();
+                        var row = removeTarget.closest('tr');
+                        var tbody = row.closest('tbody');
+                        if (tbody.querySelectorAll('tr').length > 1) {
+                            row.remove();
+                        } else {
+                            alert('You must have at least one product.');
+                        }
                     }
                 });
 
+                // ---- DELEGATED EVENTS FOR EDIT MODALS ----
                 document.addEventListener('click', function(e) {
                     var target = e.target.closest('.add-edit-row');
-                    if (!target) return;
-                    var targetId = target.dataset.target;
-                    var container = document.getElementById(targetId);
-                    if (!container) return;
-                    var rowCount = container.querySelectorAll('tr').length;
-                    var idx = parseInt(target.dataset.index) || rowCount;
+                    if (target) {
+                        e.preventDefault();
+                        var targetId = target.dataset.target;
+                        var container = document.getElementById(targetId);
+                        if (!container) return;
+                        var rowCount = container.querySelectorAll('tr').length;
+                        var idx = parseInt(target.dataset.index) || rowCount;
+                        var opts = '<option value="">Select</option>';
+                        products.forEach(function(p) {
+                            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
+                        });
+                        var newRow = document.createElement('tr');
+                        newRow.innerHTML = `
+                            <td style="width: 180px;">
+                                <select name="items[${idx}][product_id]" class="form-control product-select" required>
+                                    ${opts}
+                                </select>
+                            </td>
+                            <td>
+                                <input type="number" name="items[${idx}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
+                            </td>
+                            <td>
+                                <input type="number" name="items[${idx}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control pack-size-display" value="0" readonly>
+                            </td>
+                            <td>
+                                <input type="text" name="items[${idx}][quantity]" class="form-control quantity-display" readonly>
+                            </td>
+                            <td>
+                                <button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button>
+                            </td>
+                        `;
+                        container.appendChild(newRow);
+                        initRow(newRow);
+                        target.dataset.index = idx + 1;
+                    }
 
-                    var opts = '<option value="">Select</option>';
-                    products.forEach(function(p) {
-                        opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
-                    });
-
-                    var newRow = document.createElement('tr');
-                    newRow.innerHTML = `
-                        <td style="width: 180px;">
-                            <select name="items[${idx}][product_id]" class="form-control product-select" required>
-                                ${opts}
-                            </select>
-                        </td>
-                        <td>
-                            <input type="number" name="items[${idx}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
-                        </td>
-                        <td>
-                            <input type="number" name="items[${idx}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
-                        </td>
-                        <td>
-                            <input type="text" class="form-control pack-size-display" value="0" readonly>
-                        </td>
-                        <td>
-                            <input type="text" name="items[${idx}][quantity]" class="form-control quantity-display" readonly>
-                        </td>
-                        <td>
-                            <button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button>
-                        </td>
-                    `;
-                    container.appendChild(newRow);
-                    initRow(newRow);
-                    target.dataset.index = idx + 1;
-                });
-
-                document.addEventListener('click', function(e) {
-                    var target = e.target.closest('.remove-edit-tr');
-                    if (!target) return;
-                    var container = target.closest('tbody');
-                    if (!container) return;
-                    var rows = container.querySelectorAll('tr');
-                    if (rows.length > 1) {
-                        target.closest('tr').remove();
-                    } else {
-                        alert('You must have at least one product.');
+                    var removeEditTarget = e.target.closest('.remove-edit-tr');
+                    if (removeEditTarget) {
+                        e.preventDefault();
+                        var row = removeEditTarget.closest('tr');
+                        var tbody = row.closest('tbody');
+                        if (tbody.querySelectorAll('tr').length > 1) {
+                            row.remove();
+                        } else {
+                            alert('You must have at least one product.');
+                        }
                     }
                 });
 
+                // ---- INITIALIZE EXISTING ROWS ----
+                document.querySelectorAll('#add_items tr, [id^="edit_items_"] tr').forEach(function(row) {
+                    initRow(row);
+                });
+
+                // ---- DATA TABLES ----
                 if (typeof $ !== 'undefined') {
                     $('#example1').DataTable({
                         responsive: true,

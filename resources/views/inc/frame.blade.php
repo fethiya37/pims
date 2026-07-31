@@ -418,18 +418,22 @@
                                                 <p class="text-sm">Inter-Location Transfer</p>
                                             </a>
                                         </li>
-                                        <li class="nav-item">
-                                            <a href="{{ route('reports.treatment-consumption') }}" class="nav-link">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p class="text-sm">Treatment Consumption</p>
-                                            </a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a href="{{ route('reports.sales-report') }}" class="nav-link">
-                                                <i class="far fa-circle nav-icon"></i>
-                                                <p class="text-sm">Sales Report</p>
-                                            </a>
-                                        </li>
+                                        @if ($permission->manage_treatment_consumption == 'on')
+                                            <li class="nav-item">
+                                                <a href="{{ route('reports.treatment-consumption') }}" class="nav-link">
+                                                    <i class="far fa-circle nav-icon"></i>
+                                                    <p class="text-sm">Treatment Consumption</p>
+                                                </a>
+                                            </li>
+                                        @endif
+                                        @if ($permission->manage_product_sales == 'on')
+                                            <li class="nav-item">
+                                                <a href="{{ route('reports.sales-report') }}" class="nav-link">
+                                                    <i class="far fa-circle nav-icon"></i>
+                                                    <p class="text-sm">Sales Report</p>
+                                                </a>
+                                            </li>
+                                        @endif
                                         <li class="nav-item">
                                             <a href="{{ route('reports.transaction') }}" class="nav-link">
                                                 <i class="far fa-circle nav-icon"></i>
@@ -461,12 +465,7 @@
                                         <a href="#" class="d-block">{{ Auth::user()->name }}</a>
                                     </div>
                                 </div>
-                                <li class="nav-item">
-                                    <a class="nav-link" href="/profile">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>{{ __('messages.edit_account') }}</p>
-                                    </a>
-                                </li>
+                                
                                 <li class="nav-item">
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf

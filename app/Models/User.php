@@ -11,11 +11,6 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
     protected $fillable = [
         'name',
         'email',
@@ -23,34 +18,18 @@ class User extends Authenticatable
         'phone',
         'location_id',
         'role_id',
+        'is_active',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<int, string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
-
-    /**
-     * Relationship: Get all disposals made by the user
-     */
-
-    /**
-     * Relationship: Get all disposals approved by the user
-     */
 
     public function location()
     {
@@ -63,10 +42,9 @@ class User extends Authenticatable
     }
 
     public function notifications()
-{
-    return $this->belongsToMany(Notification::class, 'notification_user')
-                ->withPivot('read_at')
-                ->withTimestamps();
-}
-
+    {
+        return $this->belongsToMany(Notification::class, 'notification_user')
+                    ->withPivot('read_at')
+                    ->withTimestamps();
+    }
 }

@@ -29,6 +29,9 @@
                             <td>{{ $patient->full_name }}</td>
                             <td>{{ $patient->phone ?? '-' }}</td>
                             <td>
+                                <button class="btn btn-primary btn-sm edit-btn" data-id="{{ $patient->id }}" data-name="{{ $patient->full_name }}" data-phone="{{ $patient->phone }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 <button class="btn btn-danger btn-sm delete-btn" data-id="{{ $patient->id }}">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -70,7 +73,47 @@
     </div>
 </div>
 
+<!-- Edit Patient Modal -->
+<div class="modal fade" id="editPatientModal">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">Edit Patient</h5>
+                <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+            </div>
+            <form id="editPatientForm" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" id="edit_full_name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="text" name="phone" id="edit_phone" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+    $(document).on('click', '.edit-btn', function() {
+        const id = $(this).data('id');
+        const name = $(this).data('name');
+        const phone = $(this).data('phone');
+        $('#edit_full_name').val(name);
+        $('#edit_phone').val(phone);
+        $('#editPatientForm').attr('action', '/patients/' + id);
+        $('#editPatientModal').modal('show');
+    });
+
     $(document).on('click', '.delete-btn', function() {
         const id = $(this).data('id');
         if (confirm('Are you sure?')) {

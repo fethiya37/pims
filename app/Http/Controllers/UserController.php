@@ -59,6 +59,7 @@ class UserController extends Controller
             'phone' => $request->phone,
             'location_id' => $request->location_id,
             'password' => Hash::make($request->password),
+            'is_active' => $request->has('is_active') ? 1 : 0,
         ]);
 
         return back()->with('success', 'User registered successfully.');
@@ -83,6 +84,7 @@ class UserController extends Controller
             'email' => $request->email,
             'phone' => $request->phone,
             'location_id' => $request->location_id,
+            'is_active' => $request->has('is_active') ? 1 : 0,
         ];
 
         if ($request->filled('password')) {
@@ -98,12 +100,20 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        // Prevent deleting your own account
         if ($user->id === Auth::id()) {
             return back()->with('error', 'You cannot delete your own account.');
         }
 
         $user->delete();
         return back()->with('success', 'User deleted successfully.');
+    }
+
+    public function toggleActive($id)
+    {
+        $user = User::findOrFail($id);
+        $user->is_active = !$user->is_active;
+        $user->save();
+
+        return back()->with('success', 'User status updated.');
     }
 }

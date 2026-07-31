@@ -125,12 +125,12 @@
                                                                             <div class="col-4">
                                                                                 <div class="form-group">
                                                                                     <label>Category</label>
-                                                                                    <a data-toggle="modal" data-target="#modal-lg-category"
+                                                                                    <a data-toggle="modal" data-target="#categoryModal"
                                                                                         class="btn btn-xs btn-primary" style="float:right">
                                                                                         <i class="fas fa-plus"></i>
                                                                                     </a>
                                                                                     <select name="category_id"
-                                                                                        class="form-control">
+                                                                                        class="form-control category-dropdown">
                                                                                         <option value="">Select
                                                                                             Category</option>
                                                                                         @foreach ($categories as $category)
@@ -145,11 +145,11 @@
                                                                             </div>
                                                                             <div class="col-4">
                                                                                 <div class="form-group">
-                                                                                    <label>Item Code *</label>
+                                                                                    <label>Item Code</label>
                                                                                     <input type="text" name="item_code"
                                                                                         class="form-control"
                                                                                         value="{{ $product->item_code }}"
-                                                                                        required>
+                                                                                        readonly>
                                                                                 </div>
                                                                             </div>
                                                                             <div class="col-4">
@@ -274,11 +274,11 @@
                                                 <div class="col-4">
                                                     <div class="form-group">
                                                         <label>Category</label>
-                                                        <a data-toggle="modal" data-target="#modal-lg-category"
+                                                        <a data-toggle="modal" data-target="#categoryModal"
                                                             class="btn btn-xs btn-primary" style="float:right">
                                                             <i class="fas fa-plus"></i>
                                                         </a>
-                                                        <select name="category_id" class="form-control">
+                                                        <select name="category_id" class="form-control category-dropdown">
                                                             <option value="">Select Category</option>
                                                             @foreach ($categories as $category)
                                                                 <option value="{{ $category->id }}">
@@ -290,16 +290,16 @@
                                                 </div>
                                                 <div class="col-4">
                                                     <div class="form-group">
-                                                        <label>Item Code *</label>
-                                                        <input type="text" name="item_code" class="form-control"
-                                                            placeholder="e.g., PRD-001" required>
+                                                        <label>Product Name *</label>
+                                                        <input type="text" name="name" class="form-control"
+                                                            placeholder="Product Name" required>
                                                     </div>
                                                 </div>
                                                 <div class="col-4">
                                                     <div class="form-group">
-                                                        <label>Product Name *</label>
-                                                        <input type="text" name="name" class="form-control"
-                                                            placeholder="Product Name" required>
+                                                        <label>Unit (Base UoM)</label>
+                                                        <input type="text" name="unit" class="form-control"
+                                                            placeholder="e.g., piece, mL, kg">
                                                     </div>
                                                 </div>
                                             </div>
@@ -325,16 +325,6 @@
                                                 </div>
                                                 <div class="col-4">
                                                     <div class="form-group">
-                                                        <label>Unit (Base UoM)</label>
-                                                        <input type="text" name="unit" class="form-control"
-                                                            placeholder="e.g., piece, mL, kg">
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="row">
-                                                <div class="col-6">
-                                                    <div class="form-group">
                                                         <label>Status</label>
                                                         <select name="status" class="form-control">
                                                             <option value="active">Active</option>
@@ -342,7 +332,10 @@
                                                         </select>
                                                     </div>
                                                 </div>
-                                                <div class="col-6">
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-12">
                                                     <div class="form-group">
                                                         <label>Description</label>
                                                         <input type="text" name="description" class="form-control"
@@ -366,81 +359,55 @@
                 </div>
             </div>
 
-            <div class="modal fade" id="modal-lg-category">
+            <!-- CATEGORY MANAGEMENT MODAL -->
+            <div class="modal fade" id="categoryModal">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Manage Categories</h4>
-                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title"><i class="fas fa-tags"></i> Manage Categories</h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
                         <div class="modal-body">
-                            <div class="container-fluid">
-                                <div class="card card-primary">
-                                    <div class="card-header">
-                                        <h3 class="card-title">Add New Category</h3>
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <div class="input-group">
+                                        <input type="text" id="newCategoryName" class="form-control" placeholder="Enter new category name">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-success" id="addCategoryBtn"><i class="fas fa-plus"></i> Add</button>
+                                        </div>
                                     </div>
-                                    <form action="/add-category" method="POST">
-                                        @csrf
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-12">
-                                                    <div class="form-group">
-                                                        <label>Category Name</label>
-                                                        <input type="text" name="category_name"
-                                                            class="form-control" placeholder="Category Name" required>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer justify-content-between">
-                                                <button type="button" class="btn btn-default"
-                                                    data-dismiss="modal">{{ __('messages.close') }}</button>
-                                                <button type="submit"
-                                                    class="btn btn-primary swalDefaultSuccess">{{ __('messages.register') }}</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
-
-                                <div class="row mt-3">
-                                    @forelse ($categories as $category)
-                                        <div class="col-md-3">
-                                            <div class="text-center rounded shadow-sm p-2">
-                                                <form action="/edit-category-{{ $category->id }}" method="POST"
-                                                      class="d-flex flex-column align-items-center">
-                                                    @csrf
-                                                    <input type="text" name="category_name"
-                                                        class="form-control mb-2 text-center"
-                                                        value="{{ $category->name }}"
-                                                        required>
-                                                    <div class="d-flex justify-content-center gap-2">
-                                                        <button type="submit" class="btn btn-sm btn-outline-primary"
-                                                                title="Save"
-                                                                onclick="return confirm('Update this category?');">
-                                                            <i class="fas fa-save"></i>
-                                                        </button>
-                                                        <a href="/delete-category-{{ $category->id }}"
-                                                           class="btn btn-sm btn-outline-danger"
-                                                           onclick="return confirm('Are you sure you want to delete this category?')">
-                                                            <i class="fas fa-trash"></i>
-                                                        </a>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    @empty
-                                        <div class="col-12 text-center">
-                                            <p>No categories found.</p>
-                                        </div>
-                                    @endforelse
+                                    <small class="text-muted">Press Enter to add</small>
                                 </div>
                             </div>
+
+                            <div id="categoryList" class="row">
+                                @foreach ($categories as $category)
+                                    <div class="col-md-4 mb-2" data-id="{{ $category->id }}">
+                                        <div class="card shadow-sm">
+                                            <div class="card-body py-2 d-flex justify-content-between align-items-center">
+                                                <span class="category-name">{{ $category->name }}</span>
+                                                <div>
+                                                    <button class="btn btn-sm btn-outline-primary edit-category-btn" data-id="{{ $category->id }}" data-name="{{ $category->name }}">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger delete-category-btn" data-id="{{ $category->id }}">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
                         </div>
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 </section>
@@ -463,13 +430,144 @@
             }
         }
 
-        var selects = document.querySelectorAll('.packaging-type-select');
-        selects.forEach(function(select) {
+        document.querySelectorAll('.packaging-type-select').forEach(function(select) {
             togglePackSize(select);
             select.addEventListener('change', function() {
                 togglePackSize(this);
             });
         });
+
+        function refreshCategoryDropdowns() {
+            var categories = [];
+            document.querySelectorAll('#categoryList .col-md-4').forEach(function(el) {
+                var id = el.dataset.id;
+                var name = el.querySelector('.category-name').textContent.trim();
+                categories.push({id: id, name: name});
+            });
+            document.querySelectorAll('.category-dropdown').forEach(function(dropdown) {
+                var currentVal = dropdown.value;
+                dropdown.innerHTML = '<option value="">Select Category</option>';
+                categories.forEach(function(cat) {
+                    var opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    dropdown.appendChild(opt);
+                });
+                if (currentVal) {
+                    dropdown.value = currentVal;
+                }
+            });
+        }
+
+        document.getElementById('addCategoryBtn').addEventListener('click', function() {
+            var nameInput = document.getElementById('newCategoryName');
+            var name = nameInput.value.trim();
+            if (!name) {
+                alert('Please enter a category name.');
+                return;
+            }
+            fetch('{{ route('add-category') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: JSON.stringify({ category_name: name })
+            })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    var newCat = data.category;
+                    var list = document.getElementById('categoryList');
+                    var col = document.createElement('div');
+                    col.className = 'col-md-4 mb-2';
+                    col.dataset.id = newCat.id;
+                    col.innerHTML = '<div class="card shadow-sm"><div class="card-body py-2 d-flex justify-content-between align-items-center"><span class="category-name">' + newCat.name + '</span><div><button class="btn btn-sm btn-outline-primary edit-category-btn" data-id="' + newCat.id + '" data-name="' + newCat.name + '"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger delete-category-btn" data-id="' + newCat.id + '"><i class="fas fa-trash"></i></button></div></div></div>';
+                    list.appendChild(col);
+                    nameInput.value = '';
+                    refreshCategoryDropdowns();
+                } else {
+                    alert('Error: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(function(err) {
+                alert('Error adding category: ' + err);
+                console.error(err);
+            });
+        });
+
+        document.getElementById('newCategoryName').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                document.getElementById('addCategoryBtn').click();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.edit-category-btn');
+            if (btn) {
+                var id = btn.dataset.id;
+                var currentName = btn.dataset.name;
+                var newName = prompt('Edit category name:', currentName);
+                if (newName !== null && newName.trim() !== '') {
+                    fetch('{{ route('edit-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ category_name: newName.trim() })
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            var card = btn.closest('.col-md-4');
+                            card.querySelector('.category-name').textContent = newName.trim();
+                            btn.dataset.name = newName.trim();
+                            refreshCategoryDropdowns();
+                        } else {
+                            alert('Error: ' + (data.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(function(err) {
+                        alert('Error updating category: ' + err);
+                        console.error(err);
+                    });
+                }
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.delete-category-btn');
+            if (btn) {
+                if (!confirm('Delete this category?')) return;
+                var id = btn.dataset.id;
+                fetch('{{ route('delete-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        var card = btn.closest('.col-md-4');
+                        if (card) card.remove();
+                        refreshCategoryDropdowns();
+                    } else {
+                        alert('Error: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(function(err) {
+                    alert('Error deleting category: ' + err);
+                    console.error(err);
+                });
+            }
+        });
+
+        refreshCategoryDropdowns();
     });
 </script>
 @endsection
