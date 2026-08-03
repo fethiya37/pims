@@ -162,7 +162,7 @@
 
             <ul class="navbar-nav ml-auto">
 
-                <li class="nav-item dropdown">
+                <!-- <li class="nav-item dropdown">
                     <a class="nav-link text-primary" data-toggle="dropdown" href="#">
                         <i class="fas text-primary fa-globe"></i> {{ strtoupper(app()->getLocale()) }}
                     </a>
@@ -170,7 +170,7 @@
                         <a href="{{ url('lang/en') }}" class="dropdown-item">🇺🇸 English</a>
                         <a href="{{ url('lang/am') }}" class="dropdown-item">🇪🇹 አማርኛ</a>
                     </div>
-                </li>
+                </li> -->
 
                 <li class="nav-item dropdown">
                     <a class="nav-link" data-toggle="dropdown" href="#" id="notificationBell" title="Notifications">
@@ -196,11 +196,11 @@
                         <i class="fas text-primary fa-expand-arrows-alt"></i>
                     </a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
                         <i class="fas text-primary fa-th-large"></i>
                     </a>
-                </li>
+                </li> -->
             </ul>
         </nav>
 
