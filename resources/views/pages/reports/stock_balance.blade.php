@@ -59,7 +59,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($overallBalances as $item)
+                                @forelse ($overallBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->quantity_units }}</td>
@@ -68,7 +68,11 @@
                                         @endif
                                         <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="{{ $overallBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 4 : 3 }}" class="text-center">No records found</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -87,7 +91,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($locationBalances as $item)
+                                @forelse ($locationBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->location->name ?? 'N/A' }}</td>
@@ -97,7 +101,11 @@
                                         @endif
                                         <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="{{ $locationBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 5 : 4 }}" class="text-center">No records found</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -118,7 +126,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach ($batchBalances as $item)
+                                @forelse ($batchBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->location->name ?? 'N/A' }}</td>
@@ -130,7 +138,11 @@
                                         @endif
                                         <td>{{ isset($item->updated_at) ? \Carbon\Carbon::parse($item->updated_at)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @endforeach
+                                @empty
+                                    <tr>
+                                        <td colspan="{{ $batchBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 7 : 6 }}" class="text-center">No records found</td>
+                                    </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
@@ -145,20 +157,77 @@
 <script>
 $(function() {
     $('.select2').select2();
-    ['#overall_table', '#location_table', '#batch_table'].forEach(function(id) {
-        const dt = $(id).DataTable({
+
+    function initDataTable(tableId) {
+        if ($.fn.dataTable.isDataTable(tableId)) {
+            $(tableId).DataTable().destroy();
+            $(tableId).empty();
+        }
+        
+        return $(tableId).DataTable({
             responsive: true,
             lengthChange: false,
             autoWidth: false,
             pageLength: 20,
-            order: [[$(id + ' thead th').length - 1, 'desc']],
-            buttons: ["csv","excel","pdf","print"]
+            buttons: ["csv", "excel", "pdf", "print"]
         });
-        dt.buttons().container().appendTo(`${id}_wrapper .col-md-6:eq(0)`);
-    });
+    }
+
+    var overallTable = initDataTable('#overall_table');
+    var locationTable = initDataTable('#location_table');
+    var batchTable = initDataTable('#batch_table');
+
+    // Append buttons to wrapper
+    if (overallTable) {
+        overallTable.buttons().container().appendTo('#overall_table_wrapper .col-md-6:eq(0)');
+    }
+    if (locationTable) {
+        locationTable.buttons().container().appendTo('#location_table_wrapper .col-md-6:eq(0)');
+    }
+    if (batchTable) {
+        batchTable.buttons().container().appendTo('#batch_table_wrapper .col-md-6:eq(0)');
+    }
+
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
         $('input[name="active_tab"]').val($(e.target).attr('href').replace('#', ''));
         $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+    });
+
+    // Handle tab switching properly
+    $('a[data-toggle="tab"]').on('hide.bs.tab', function(e) {
+        var target = $(e.target).attr('href');
+        if (target === '#overall' && overallTable) {
+            overallTable.destroy();
+            overallTable = null;
+        } else if (target === '#location' && locationTable) {
+            locationTable.destroy();
+            locationTable = null;
+        } else if (target === '#batch' && batchTable) {
+            batchTable.destroy();
+            batchTable = null;
+        }
+    });
+
+    $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
+        var target = $(e.target).attr('href');
+        setTimeout(function() {
+            if (target === '#overall') {
+                overallTable = initDataTable('#overall_table');
+                if (overallTable) {
+                    overallTable.buttons().container().appendTo('#overall_table_wrapper .col-md-6:eq(0)');
+                }
+            } else if (target === '#location') {
+                locationTable = initDataTable('#location_table');
+                if (locationTable) {
+                    locationTable.buttons().container().appendTo('#location_table_wrapper .col-md-6:eq(0)');
+                }
+            } else if (target === '#batch') {
+                batchTable = initDataTable('#batch_table');
+                if (batchTable) {
+                    batchTable.buttons().container().appendTo('#batch_table_wrapper .col-md-6:eq(0)');
+                }
+            }
+        }, 100);
     });
 });
 </script>
