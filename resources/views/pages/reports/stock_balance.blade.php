@@ -55,6 +55,7 @@
                                     @if($overallBalances->contains(fn($item) => $item->packaging_type === 'pack'))
                                     <th>Total Quantity (pack)</th>
                                     @endif
+                                    <th>Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -65,6 +66,7 @@
                                         @if($item->packaging_type === 'pack')
                                         <td>{{ $item->quantity_pack_display }}</td>
                                         @endif
+                                        <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -81,6 +83,7 @@
                                     @if($locationBalances->contains(fn($item) => $item->packaging_type === 'pack'))
                                     <th>Quantity (pack)</th>
                                     @endif
+                                    <th>Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -92,6 +95,7 @@
                                         @if($item->packaging_type === 'pack')
                                         <td>{{ $item->quantity_pack_display }}</td>
                                         @endif
+                                        <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -110,6 +114,7 @@
                                     @if($batchBalances->contains(fn($item) => $item->packaging_type === 'pack'))
                                     <th>Quantity (pack)</th>
                                     @endif
+                                    <th>Last Updated</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -123,6 +128,7 @@
                                         @if($item->packaging_type === 'pack')
                                         <td>{{ $item->quantity_pack_display }}</td>
                                         @endif
+                                        <td>{{ isset($item->updated_at) ? \Carbon\Carbon::parse($item->updated_at)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -145,6 +151,7 @@ $(function() {
             lengthChange: false,
             autoWidth: false,
             pageLength: 20,
+            order: [[$(id + ' thead th').length - 1, 'desc']],
             buttons: ["csv","excel","pdf","print"]
         });
         dt.buttons().container().appendTo(`${id}_wrapper .col-md-6:eq(0)`);

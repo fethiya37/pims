@@ -34,93 +34,97 @@ class ReportController extends Controller
         return Location::whereIn('id', $ids)->orderBy('name')->get();
     }
 
-    public function stockBalance(Request $request): View
-    {
-        $allowedLocations = $this->getLocationsForDropdown();
-        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+   public function stockBalance(Request $request): View
+{
+    $allowedLocations = $this->getLocationsForDropdown();
+    $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
 
-        $products = Product::orderBy('name')->get();
+    $products = Product::orderBy('name')->get();
 
-        $productId = $request->product_id;
-        $locationId = $request->location_id;
-        $activeTab = $request->active_tab ?? 'overall';
+    $productId = $request->product_id;
+    $locationId = $request->location_id;
+    $activeTab = $request->active_tab ?? 'overall';
 
-        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
-            if (empty($locationId)) {
-                $locationId = Auth::user()->location_id;
-            } else {
-                if (!in_array($locationId, $allowedLocationIds)) {
-                    $locationId = Auth::user()->location_id;
-                }
-            }
+    if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+        if (empty($locationId)) {
+            $locationId = Auth::user()->location_id;
         } else {
-            if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
-                $locationId = null;
+            if (!in_array($locationId, $allowedLocationIds)) {
+                $locationId = Auth::user()->location_id;
             }
         }
-
-        $overallBalances = collect();
-        $locationBalances = collect();
-        $batchBalances = collect();
-
-        if ($request->has('product_id') || !empty($locationId)) {
-            $query = StockBatch::with(['product', 'location'])
-                ->whereIn('location_id', $allowedLocationIds);
-
-            if (!empty($productId)) {
-                $query->where('product_id', $productId);
-            }
-            if (!empty($locationId)) {
-                $query->where('location_id', $locationId);
-            }
-
-            $batchBalances = $query->orderBy('product_id')->orderBy('location_id')->get();
-
-            $overallQuery = StockBatch::select(
-                'product_id',
-                DB::raw('SUM(quantity) as total_quantity')
-            )
-                ->whereIn('location_id', $allowedLocationIds)
-                ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
-                ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
-                ->groupBy('product_id')
-                ->with('product');
-
-            $overallBalances = $overallQuery->get()->map(function ($item) {
-                return $this->addPackBreakdown($item, $item->product);
-            });
-
-            $locationQuery = StockBatch::select(
-                'product_id',
-                'location_id',
-                DB::raw('SUM(quantity) as total_quantity')
-            )
-                ->whereIn('location_id', $allowedLocationIds)
-                ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
-                ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
-                ->groupBy('product_id', 'location_id')
-                ->with(['product', 'location']);
-
-            $locationBalances = $locationQuery->get()->map(function ($item) {
-                return $this->addPackBreakdown($item, $item->product);
-            });
-
-            $batchBalances = $batchBalances->map(function ($batch) {
-                return $this->addPackBreakdown($batch, $batch->product);
-            });
+    } else {
+        if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
+            $locationId = null;
         }
-
-        return view('pages.reports.stock_balance', compact(
-            'products',
-            'overallBalances',
-            'locationBalances',
-            'batchBalances',
-            'activeTab',
-            'productId',
-            'locationId',
-            'allowedLocations'
-        ));
     }
+
+    $overallBalances = collect();
+    $locationBalances = collect();
+    $batchBalances = collect();
+
+    if ($request->has('product_id') || !empty($locationId)) {
+        $query = StockBatch::with(['product', 'location'])
+            ->whereIn('location_id', $allowedLocationIds);
+
+        if (!empty($productId)) {
+            $query->where('product_id', $productId);
+        }
+        if (!empty($locationId)) {
+            $query->where('location_id', $locationId);
+        }
+
+        $batchBalances = $query->orderBy('updated_at', 'desc')->get();
+
+        $overallQuery = StockBatch::select(
+            'product_id',
+            DB::raw('SUM(quantity) as total_quantity'),
+            DB::raw('MAX(updated_at) as last_updated')
+        )
+            ->whereIn('location_id', $allowedLocationIds)
+            ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
+            ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
+            ->groupBy('product_id')
+            ->with('product')
+            ->orderBy('last_updated', 'desc');
+
+        $overallBalances = $overallQuery->get()->map(function ($item) {
+            return $this->addPackBreakdown($item, $item->product);
+        });
+
+        $locationQuery = StockBatch::select(
+            'product_id',
+            'location_id',
+            DB::raw('SUM(quantity) as total_quantity'),
+            DB::raw('MAX(updated_at) as last_updated')
+        )
+            ->whereIn('location_id', $allowedLocationIds)
+            ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
+            ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
+            ->groupBy('product_id', 'location_id')
+            ->with(['product', 'location'])
+            ->orderBy('last_updated', 'desc');
+
+        $locationBalances = $locationQuery->get()->map(function ($item) {
+            return $this->addPackBreakdown($item, $item->product);
+        });
+
+        $batchBalances = $batchBalances->map(function ($batch) {
+            return $this->addPackBreakdown($batch, $batch->product);
+        });
+    }
+
+    return view('pages.reports.stock_balance', compact(
+        'products',
+        'overallBalances',
+        'locationBalances',
+        'batchBalances',
+        'activeTab',
+        'productId',
+        'locationId',
+        'allowedLocations'
+    ));
+}
 
     public function interLocationTransfer(Request $request): View
     {
