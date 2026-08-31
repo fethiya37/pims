@@ -39,6 +39,9 @@
                                         @foreach ($users as $user)
                                             @php
                                                 $currentRole = $roles->firstWhere('id', $user->role_id);
+                                                $isSuperAdmin = $currentRole && $currentRole->role_name === 'Super Admin';
+                                                $isCurrentUser = $user->id === Auth::id();
+                                                $canDeactivate = !$isSuperAdmin || ($isSuperAdmin && !$isCurrentUser);
                                             @endphp
                                             <tr>
                                                 <td>{{ $loop->iteration }}</td>
@@ -58,12 +61,14 @@
                                                     @else
                                                         <span class="badge badge-danger">Inactive</span>
                                                     @endif
-                                                    <form action="/toggle-active-{{ $user->id }}" method="POST" style="display:inline-block; margin-left:5px;">
-                                                        @csrf
-                                                        <button type="submit" class="btn btn-sm {{ $user->is_active ? 'btn-warning' : 'btn-success' }}">
-                                                            {{ $user->is_active ? 'Deactivate' : 'Activate' }}
-                                                        </button>
-                                                    </form>
+                                                    @if($canDeactivate)
+                                                        <form action="/toggle-active-{{ $user->id }}" method="POST" style="display:inline-block; margin-left:5px;">
+                                                            @csrf
+                                                            <button type="submit" class="btn btn-sm {{ $user->is_active ? 'btn-warning' : 'btn-success' }}">
+                                                                {{ $user->is_active ? 'Deactivate' : 'Activate' }}
+                                                            </button>
+                                                        </form>
+                                                    @endif
                                                 </td>
                                                 <td>{{ $user->created_at->toDateString() }}</td>
                                                 <td>

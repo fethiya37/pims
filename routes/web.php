@@ -35,6 +35,7 @@ Route::controller(LocationController::class)
 Route::controller(ProductController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_products'])->group(function () {
         Route::get('/products', 'index')->name('products.index');
+        Route::get('/products/data', 'getProductData')->name('products.data'); 
         Route::post('/add-product', 'addProduct');
         Route::post('/edit-product-{id}', 'editProduct');
         Route::get('delete-product-{id}', 'deleteProduct');

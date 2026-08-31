@@ -18,6 +18,9 @@ class DatabaseSeeder extends Seeder
             LocationSeeder::class,
             RoleSeeder::class,
             UserSeeder::class,
+            CategorySeeder::class,
+            ProductSeeder::class,
+            StockBatchSeeder::class,
         ]);
     }
 

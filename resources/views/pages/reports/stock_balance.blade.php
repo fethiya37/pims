@@ -59,7 +59,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($overallBalances as $item)
+                                @foreach ($overallBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->quantity_units }}</td>
@@ -68,11 +68,7 @@
                                         @endif
                                         <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="{{ $overallBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 4 : 3 }}" class="text-center">No records found</td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -91,7 +87,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($locationBalances as $item)
+                                @foreach ($locationBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->location->name ?? 'N/A' }}</td>
@@ -101,11 +97,7 @@
                                         @endif
                                         <td>{{ isset($item->last_updated) ? \Carbon\Carbon::parse($item->last_updated)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="{{ $locationBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 5 : 4 }}" class="text-center">No records found</td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -126,7 +118,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($batchBalances as $item)
+                                @foreach ($batchBalances as $item)
                                     <tr>
                                         <td>{{ $item->product->name ?? 'N/A' }}</td>
                                         <td>{{ $item->location->name ?? 'N/A' }}</td>
@@ -138,11 +130,7 @@
                                         @endif
                                         <td>{{ isset($item->updated_at) ? \Carbon\Carbon::parse($item->updated_at)->format('Y-m-d H:i') : 'N/A' }}</td>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="{{ $batchBalances->contains(fn($item) => $item->packaging_type === 'pack') ? 7 : 6 }}" class="text-center">No records found</td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -157,98 +145,19 @@
 <script>
 $(function() {
     $('.select2').select2();
-
-    // Initialize DataTables with proper settings for large datasets
-    function initDataTable(tableId) {
-        // Destroy existing instance if it exists
-        if ($.fn.dataTable.isDataTable(tableId)) {
-            $(tableId).DataTable().destroy();
-        }
-        
-        // Get the table element
-        var table = $(tableId);
-        
-        // Ensure the table is visible before initializing
-        if (!table.is(':visible')) {
-            // If not visible, wait and initialize after a delay
-            setTimeout(function() {
-                initDataTable(tableId);
-            }, 300);
-            return null;
-        }
-        
-        var dt = table.DataTable({
+    ['#overall_table', '#location_table', '#batch_table'].forEach(function(id) {
+        const dt = $(id).DataTable({
             responsive: true,
             lengthChange: false,
             autoWidth: false,
             pageLength: 20,
-            buttons: ["csv", "excel", "pdf", "print"],
-            deferRender: true,
-            processing: true,
-            scrollX: false,
-            destroy: true
+            order: [[$(id + ' thead th').length - 1, 'desc']],
+            buttons: ["csv","excel","pdf","print"]
         });
-        
-        // Add buttons to wrapper
-        if (dt) {
-            dt.buttons().container().appendTo(tableId + '_wrapper .col-md-6:eq(0)');
-        }
-        
-        return dt;
-    }
-
-    // Initialize active tab only
-    var activeTab = '{{ $activeTab }}';
-    var overallTable = null;
-    var locationTable = null;
-    var batchTable = null;
-
-    // Initialize only the active tab's table
-    if (activeTab === 'overall' || activeTab === '') {
-        overallTable = initDataTable('#overall_table');
-    } else if (activeTab === 'location') {
-        locationTable = initDataTable('#location_table');
-    } else if (activeTab === 'batch') {
-        batchTable = initDataTable('#batch_table');
-    }
-
-    // Handle tab switching
+        dt.buttons().container().appendTo(`${id}_wrapper .col-md-6:eq(0)`);
+    });
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        var target = $(e.target).attr('href');
-        $('input[name="active_tab"]').val(target.replace('#', ''));
-        
-        // Initialize the table for the shown tab
-        setTimeout(function() {
-            if (target === '#overall') {
-                overallTable = initDataTable('#overall_table');
-            } else if (target === '#location') {
-                locationTable = initDataTable('#location_table');
-            } else if (target === '#batch') {
-                batchTable = initDataTable('#batch_table');
-            }
-            
-            // Adjust columns after initialization
-            $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
-        }, 200);
-    });
-
-    // Destroy tables when hiding tabs to free up memory
-    $('a[data-toggle="tab"]').on('hide.bs.tab', function(e) {
-        var target = $(e.target).attr('href');
-        if (target === '#overall' && overallTable) {
-            overallTable.destroy();
-            overallTable = null;
-        } else if (target === '#location' && locationTable) {
-            locationTable.destroy();
-            locationTable = null;
-        } else if (target === '#batch' && batchTable) {
-            batchTable.destroy();
-            batchTable = null;
-        }
-    });
-
-    // Handle window resize to adjust columns
-    $(window).on('resize', function() {
+        $('input[name="active_tab"]').val($(e.target).attr('href').replace('#', ''));
         $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     });
 });

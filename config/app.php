@@ -196,6 +196,7 @@ return [
         App\Providers\RouteServiceProvider::class,
         Ladumor\LaravelPwa\PWAServiceProvider::class,
         Ladumor\LaravelPwa\PWAServiceProvider::class,
+        Yajra\DataTables\DataTablesServiceProvider::class,
 
     ],
 
@@ -214,6 +215,7 @@ return [
         // 'ExampleClass' => App\Example\ExampleClass::class,
         'LaravelPwa' => \Ladumor\LaravelPwa\LaravelPwa::class,
         'PDF' => Barryvdh\DomPDF\Facade\Pdf::class,
+        'DataTables' => Yajra\DataTables\Facades\DataTables::class,
         
     ])->toArray(),
 
