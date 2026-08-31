@@ -158,42 +158,81 @@
 $(function() {
     $('.select2').select2();
 
+    // Initialize DataTables with proper settings for large datasets
     function initDataTable(tableId) {
+        // Destroy existing instance if it exists
         if ($.fn.dataTable.isDataTable(tableId)) {
             $(tableId).DataTable().destroy();
-            $(tableId).empty();
         }
         
-        return $(tableId).DataTable({
+        // Get the table element
+        var table = $(tableId);
+        
+        // Ensure the table is visible before initializing
+        if (!table.is(':visible')) {
+            // If not visible, wait and initialize after a delay
+            setTimeout(function() {
+                initDataTable(tableId);
+            }, 300);
+            return null;
+        }
+        
+        var dt = table.DataTable({
             responsive: true,
             lengthChange: false,
             autoWidth: false,
             pageLength: 20,
-            buttons: ["csv", "excel", "pdf", "print"]
+            buttons: ["csv", "excel", "pdf", "print"],
+            deferRender: true,
+            processing: true,
+            scrollX: false,
+            destroy: true
         });
+        
+        // Add buttons to wrapper
+        if (dt) {
+            dt.buttons().container().appendTo(tableId + '_wrapper .col-md-6:eq(0)');
+        }
+        
+        return dt;
     }
 
-    var overallTable = initDataTable('#overall_table');
-    var locationTable = initDataTable('#location_table');
-    var batchTable = initDataTable('#batch_table');
+    // Initialize active tab only
+    var activeTab = '{{ $activeTab }}';
+    var overallTable = null;
+    var locationTable = null;
+    var batchTable = null;
 
-    // Append buttons to wrapper
-    if (overallTable) {
-        overallTable.buttons().container().appendTo('#overall_table_wrapper .col-md-6:eq(0)');
-    }
-    if (locationTable) {
-        locationTable.buttons().container().appendTo('#location_table_wrapper .col-md-6:eq(0)');
-    }
-    if (batchTable) {
-        batchTable.buttons().container().appendTo('#batch_table_wrapper .col-md-6:eq(0)');
+    // Initialize only the active tab's table
+    if (activeTab === 'overall' || activeTab === '') {
+        overallTable = initDataTable('#overall_table');
+    } else if (activeTab === 'location') {
+        locationTable = initDataTable('#location_table');
+    } else if (activeTab === 'batch') {
+        batchTable = initDataTable('#batch_table');
     }
 
+    // Handle tab switching
     $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        $('input[name="active_tab"]').val($(e.target).attr('href').replace('#', ''));
-        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+        var target = $(e.target).attr('href');
+        $('input[name="active_tab"]').val(target.replace('#', ''));
+        
+        // Initialize the table for the shown tab
+        setTimeout(function() {
+            if (target === '#overall') {
+                overallTable = initDataTable('#overall_table');
+            } else if (target === '#location') {
+                locationTable = initDataTable('#location_table');
+            } else if (target === '#batch') {
+                batchTable = initDataTable('#batch_table');
+            }
+            
+            // Adjust columns after initialization
+            $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+        }, 200);
     });
 
-    // Handle tab switching properly
+    // Destroy tables when hiding tabs to free up memory
     $('a[data-toggle="tab"]').on('hide.bs.tab', function(e) {
         var target = $(e.target).attr('href');
         if (target === '#overall' && overallTable) {
@@ -208,26 +247,9 @@ $(function() {
         }
     });
 
-    $('a[data-toggle="tab"]').on('show.bs.tab', function(e) {
-        var target = $(e.target).attr('href');
-        setTimeout(function() {
-            if (target === '#overall') {
-                overallTable = initDataTable('#overall_table');
-                if (overallTable) {
-                    overallTable.buttons().container().appendTo('#overall_table_wrapper .col-md-6:eq(0)');
-                }
-            } else if (target === '#location') {
-                locationTable = initDataTable('#location_table');
-                if (locationTable) {
-                    locationTable.buttons().container().appendTo('#location_table_wrapper .col-md-6:eq(0)');
-                }
-            } else if (target === '#batch') {
-                batchTable = initDataTable('#batch_table');
-                if (batchTable) {
-                    batchTable.buttons().container().appendTo('#batch_table_wrapper .col-md-6:eq(0)');
-                }
-            }
-        }, 100);
+    // Handle window resize to adjust columns
+    $(window).on('resize', function() {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     });
 });
 </script>
