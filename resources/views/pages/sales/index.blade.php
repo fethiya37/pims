@@ -148,7 +148,7 @@
                                 <div class="row invoice-info mb-4">
                                     <div class="col-sm-4">
                                         <div class="form-group">
-                                            <label>Location *</label>
+                                            <label>Location (Sale) *</label>
                                             <select name="location_id" class="form-control" required
                                                 {{ !$isSuperAdmin ? 'disabled' : '' }}>
                                                 <option value="">Select Location</option>
@@ -305,7 +305,7 @@
                                         <div class="row invoice-info mb-4">
                                             <div class="col-sm-4">
                                                 <div class="form-group">
-                                                    <label>Location *</label>
+                                                    <label>Location (Sale) *</label>
                                                     <select name="location_id" class="form-control" required
                                                         {{ !$isSuperAdmin ? 'disabled' : '' }}>
                                                         @foreach ($locations as $location)
@@ -652,7 +652,6 @@
                     });
                 }
 
-                // ---- DELEGATED EVENTS FOR CREATE MODAL ----
                 document.getElementById('add_items').addEventListener('click', function(e) {
                     var target = e.target.closest('.add-row');
                     if (target) {
@@ -709,7 +708,6 @@
                     }
                 });
 
-                // ---- DELEGATED EVENTS FOR EDIT MODALS ----
                 document.addEventListener('click', function(e) {
                     var target = e.target.closest('.add-edit-row');
                     if (target) {
@@ -767,12 +765,10 @@
                     }
                 });
 
-                // ---- INITIALIZE EXISTING ROWS ----
                 document.querySelectorAll('#add_items tr, [id^="edit_items_"] tr').forEach(function(row) {
                     initRow(row);
                 });
 
-                // ---- DATA TABLES ----
                 if (typeof $ !== 'undefined') {
                     $('#sale-table').DataTable({
                         responsive: true,

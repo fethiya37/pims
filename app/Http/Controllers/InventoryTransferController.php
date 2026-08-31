@@ -35,11 +35,12 @@ class InventoryTransferController extends Controller
 
         $products = Product::all();
         $stores = Location::where('type', 'store')->get();
+        $saleStores = Location::where('type', 'sale')->get();
         $pointOfUseStores = Location::where('type', 'point_of_use')->get();
 
         $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        return view('pages.inventory_transfers.index', compact('transfers', 'locations', 'products', 'stores', 'pointOfUseStores', 'isSuperAdmin'));
+        return view('pages.inventory_transfers.index', compact('transfers', 'locations', 'products', 'stores', 'saleStores', 'pointOfUseStores', 'isSuperAdmin'));
     }
 
     public function store(Request $request)
@@ -64,8 +65,8 @@ class InventoryTransferController extends Controller
             return back()->with('error', 'From location must be a Store.');
         }
 
-        if (!$toLocation || $toLocation->type !== 'point_of_use') {
-            return back()->with('error', 'To location must be a Point of Use.');
+        if (!$toLocation || !in_array($toLocation->type, ['sale', 'point_of_use'])) {
+            return back()->with('error', 'To location must be either a Sale or Point of Use location.');
         }
 
         if ($user->role->role_name !== 'Super Admin') {
@@ -157,8 +158,8 @@ class InventoryTransferController extends Controller
             return back()->with('error', 'From location must be a Store.');
         }
 
-        if (!$toLocation || $toLocation->type !== 'point_of_use') {
-            return back()->with('error', 'To location must be a Point of Use.');
+        if (!$toLocation || !in_array($toLocation->type, ['sale', 'point_of_use'])) {
+            return back()->with('error', 'To location must be either a Sale or Point of Use location.');
         }
 
         if ($user->role->role_name !== 'Super Admin') {
@@ -385,7 +386,7 @@ class InventoryTransferController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Transfer received successfully. Stock added to Point of Use.');
+            return back()->with('success', 'Transfer received successfully. Stock added to destination.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error receiving transfer: ' . $e->getMessage());

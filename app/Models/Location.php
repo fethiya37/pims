@@ -10,15 +10,11 @@ class Location extends Model
     use HasFactory;
 
     const TYPE_STORE = 'store';
+    const TYPE_SALE = 'sale';
     const TYPE_POINT_OF_USE = 'point_of_use';
 
     protected $fillable = [
         'name',
         'type',
     ];
-
-    public function shelves()
-    {
-        return $this->hasMany(Shelf::class);
-    }
 }

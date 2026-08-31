@@ -23,14 +23,14 @@ class ProductSaleController extends Controller
             $sales = ProductSale::with(['location', 'user', 'items.product'])
                 ->orderBy('created_at', 'desc')
                 ->get();
-            $locations = Location::where('type', 'point_of_use')->orderBy('id', 'desc')->get();
+            $locations = Location::where('type', 'sale')->orderBy('id', 'desc')->get();
             $isSuperAdmin = true;
         } else {
             $sales = ProductSale::where('location_id', $user->location_id)
                 ->with(['location', 'user', 'items.product'])
                 ->orderBy('created_at', 'desc')
                 ->get();
-            $locations = Location::where('id', $user->location_id)->where('type', 'point_of_use')->get();
+            $locations = Location::where('id', $user->location_id)->where('type', 'sale')->get();
             $isSuperAdmin = false;
         }
 
@@ -55,8 +55,8 @@ class ProductSaleController extends Controller
         ]);
 
         $location = Location::find($request->location_id);
-        if (!$location || $location->type !== 'point_of_use') {
-            return back()->with('error', 'Sales can only be recorded at Point of Use locations.');
+        if (!$location || $location->type !== 'sale') {
+            return back()->with('error', 'Sales can only be recorded at Sale locations.');
         }
 
         DB::beginTransaction();
@@ -155,8 +155,8 @@ class ProductSaleController extends Controller
         ]);
 
         $location = Location::find($request->location_id);
-        if (!$location || $location->type !== 'point_of_use') {
-            return back()->with('error', 'Sales can only be recorded at Point of Use locations.');
+        if (!$location || $location->type !== 'sale') {
+            return back()->with('error', 'Sales can only be recorded at Sale locations.');
         }
 
         DB::beginTransaction();
@@ -273,7 +273,7 @@ class ProductSaleController extends Controller
                         'expiry_date' => $batch->expiry_date,
                         'quantity' => $takeQty,
                         'user_id' => auth()->id(),
-                        'notes' => 'Walk-in sale',
+                        'notes' => 'Sale at ' . $sale->location->name,
                     ]);
 
                     $qtyToSell -= $takeQty;

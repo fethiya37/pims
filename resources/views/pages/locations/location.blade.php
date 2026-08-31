@@ -40,8 +40,12 @@
                                                 <td>
                                                     @if ($location->type === 'store')
                                                         <span class="badge badge-primary">Store</span>
-                                                    @else
+                                                    @elseif ($location->type === 'sale')
+                                                        <span class="badge badge-success">Sale</span>
+                                                    @elseif ($location->type === 'point_of_use')
                                                         <span class="badge badge-info">Point of Use</span>
+                                                    @else
+                                                        <span class="badge badge-secondary">{{ ucfirst(str_replace('_', ' ', $location->type)) }}</span>
                                                     @endif
                                                 </td>
                                                 <td>
@@ -54,7 +58,6 @@
                                                 </td>
                                             </tr>
 
-                                            <!-- Edit Modal -->
                                             <div class="modal fade" id="modal-lg-{{ $location->id }}">
                                                 <div class="modal-dialog modal-lg">
                                                     <div class="modal-content">
@@ -84,10 +87,11 @@
                                                                                         @if (auth()->user()->role->role_name === 'Super Admin')
                                                                                             <select name="type" class="form-control" required>
                                                                                                 <option value="store" {{ $location->type === 'store' ? 'selected' : '' }}>Store</option>
+                                                                                                <option value="sale" {{ $location->type === 'sale' ? 'selected' : '' }}>Sale</option>
                                                                                                 <option value="point_of_use" {{ $location->type === 'point_of_use' ? 'selected' : '' }}>Point of Use</option>
                                                                                             </select>
                                                                                         @else
-                                                                                            <input type="text" class="form-control" value="{{ $location->type === 'store' ? 'Store' : 'Point of Use' }}" readonly>
+                                                                                            <input type="text" class="form-control" value="{{ $location->type === 'store' ? 'Store' : ($location->type === 'sale' ? 'Sale' : 'Point of Use') }}" readonly>
                                                                                             <input type="hidden" name="type" value="{{ $location->type }}">
                                                                                         @endif
                                                                                     </div>
@@ -117,7 +121,6 @@
                     </div>
                 </div>
 
-                <!-- Add Location Modal -->
                 <div class="modal fade" id="modal-lg">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
@@ -148,10 +151,11 @@
                                                                 <select name="type" class="form-control" required>
                                                                     <option value="" disabled selected>Select Type</option>
                                                                     <option value="store">Store</option>
+                                                                    <option value="sale">Sale</option>
                                                                     <option value="point_of_use">Point of Use</option>
                                                                 </select>
                                                             @else
-                                                                <input type="text" class="form-control" value="{{ auth()->user()->location->type === 'store' ? 'Store' : 'Point of Use' }}" readonly>
+                                                                <input type="text" class="form-control" value="{{ auth()->user()->location->type === 'store' ? 'Store' : (auth()->user()->location->type === 'sale' ? 'Sale' : 'Point of Use') }}" readonly>
                                                                 <input type="hidden" name="type" value="{{ auth()->user()->location->type }}">
                                                             @endif
                                                         </div>

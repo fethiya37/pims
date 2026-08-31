@@ -28,7 +28,7 @@ class LocationController extends Controller
     {
         $request->validate([
             'name' => ['required', 'max:255'],
-            'type' => ['required', 'in:store,point_of_use'],
+            'type' => ['required', 'in:store,sale,point_of_use'],
         ]);
 
         Location::create([
@@ -43,7 +43,7 @@ class LocationController extends Controller
     {
         $request->validate([
             'name' => ['required', 'max:255'],
-            'type' => ['required', 'in:store,point_of_use'],
+            'type' => ['required', 'in:store,sale,point_of_use'],
         ]);
 
         Location::where('id', $id)->update([

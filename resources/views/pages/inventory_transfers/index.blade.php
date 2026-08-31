@@ -184,14 +184,20 @@
                                     </div>
                                     <div class="col-sm-4">
                                         <div class="form-group">
-                                            <label>To (Point of Use)</label>
+                                            <label>To (Sale / Point of Use)</label>
                                             <select name="to_location_id" class="form-control" required
                                                 {{ !$isSuperAdmin ? 'disabled' : '' }}>
-                                                <option value="">Select Point of Use</option>
+                                                <option value="">Select Destination</option>
+                                                @foreach ($saleStores as $saleStore)
+                                                    <option value="{{ $saleStore->id }}"
+                                                        {{ Auth::user()->location_id == $saleStore->id ? 'selected' : '' }}>
+                                                        {{ $saleStore->name }} (Sale)
+                                                    </option>
+                                                @endforeach
                                                 @foreach ($pointOfUseStores as $pointOfUse)
                                                     <option value="{{ $pointOfUse->id }}"
                                                         {{ Auth::user()->location_id == $pointOfUse->id ? 'selected' : '' }}>
-                                                        {{ $pointOfUse->name }}
+                                                        {{ $pointOfUse->name }} (Point of Use)
                                                     </option>
                                                 @endforeach
                                             </select>
@@ -324,13 +330,19 @@
                                             </div>
                                             <div class="col-sm-4">
                                                 <div class="form-group">
-                                                    <label>To (Point of Use)</label>
+                                                    <label>To (Sale / Point of Use)</label>
                                                     <select name="to_location_id" class="form-control" required
                                                         {{ !$isSuperAdmin ? 'disabled' : '' }}>
+                                                        @foreach ($saleStores as $saleStore)
+                                                            <option value="{{ $saleStore->id }}"
+                                                                {{ $saleStore->id == $transfer->to_location_id ? 'selected' : '' }}>
+                                                                {{ $saleStore->name }} (Sale)
+                                                            </option>
+                                                        @endforeach
                                                         @foreach ($pointOfUseStores as $pointOfUse)
                                                             <option value="{{ $pointOfUse->id }}"
                                                                 {{ $pointOfUse->id == $transfer->to_location_id ? 'selected' : '' }}>
-                                                                {{ $pointOfUse->name }}
+                                                                {{ $pointOfUse->name }} (Point of Use)
                                                             </option>
                                                         @endforeach
                                                     </select>
@@ -646,7 +658,6 @@
                     });
                 }
 
-                // ---- DELEGATED EVENTS FOR CREATE MODAL ----
                 document.getElementById('add_items').addEventListener('click', function(e) {
                     var target = e.target.closest('.add-row');
                     if (target) {
@@ -700,7 +711,6 @@
                     }
                 });
 
-                // ---- DELEGATED EVENTS FOR EDIT MODALS ----
                 document.addEventListener('click', function(e) {
                     var target = e.target.closest('.add-edit-row');
                     if (target) {
@@ -755,12 +765,10 @@
                     }
                 });
 
-                // ---- INITIALIZE EXISTING ROWS ----
                 document.querySelectorAll('#add_items tr, [id^="edit_items_"] tr').forEach(function(row) {
                     initRow(row);
                 });
 
-                // ---- DATA TABLES ----
                 if (typeof $ !== 'undefined') {
                     $('#example1').DataTable({
                         responsive: true,
