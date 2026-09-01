@@ -111,6 +111,8 @@ class ProductSaleController extends Controller
                     'unit_price' => $item['unit_price'],
                     'line_total' => $lineTotal,
                     'total_tax' => $lineTax,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
 
                 $subtotal += $lineTotal;
@@ -211,6 +213,8 @@ class ProductSaleController extends Controller
                     'unit_price' => $item['unit_price'],
                     'line_total' => $lineTotal,
                     'total_tax' => $lineTax,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
 
                 $subtotal += $lineTotal;

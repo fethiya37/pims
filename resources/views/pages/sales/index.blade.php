@@ -384,8 +384,15 @@
                                                             @php
                                                                 $product = $item->product;
                                                                 $packSize = $product->default_pack_size;
-                                                                $fullPkgs = floor($item->quantity / $packSize);
-                                                                $extra = $item->quantity - ($fullPkgs * $packSize);
+                                                                $isUnitType = $product->packaging_type === 'unit';
+                                                                
+                                                                if ($isUnitType) {
+                                                                    $fullPkgs = 0;
+                                                                    $extra = $item->unit ?? $item->quantity;
+                                                                } else {
+                                                                    $fullPkgs = $item->package ?? floor($item->quantity / $packSize);
+                                                                    $extra = $item->unit ?? ($item->quantity - ($fullPkgs * $packSize));
+                                                                }
                                                             @endphp
                                                             <tr>
                                                                 <td style="width: 180px;">
@@ -408,7 +415,8 @@
                                                                 <td>
                                                                     <input type="number" name="items[{{ $index }}][full_packages]"
                                                                         class="form-control packages-input"
-                                                                        value="{{ $fullPkgs }}" min="0" step="1" required>
+                                                                        value="{{ $fullPkgs }}" min="0" step="1" required
+                                                                        {{ $isUnitType ? 'readonly' : '' }}>
                                                                 </td>
                                                                 <td>
                                                                     <input type="number" name="items[{{ $index }}][extra_units]"
@@ -650,6 +658,17 @@
                         updatePackagesDisabled(row);
                         updateQuantity(row);
                     });
+
+                    if (productSelect) {
+                        var initialProductId = productSelect.value;
+                        if (initialProductId) {
+                            var found = products.find(function(p) { return p.id == initialProductId; });
+                            if (found && found.packaging_type === 'unit') {
+                                packagesInput.readOnly = true;
+                                packagesInput.value = 0;
+                            }
+                        }
+                    }
                 }
 
                 document.getElementById('add_items').addEventListener('click', function(e) {

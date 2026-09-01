@@ -91,6 +91,8 @@ class GoodsReceiptController extends Controller
                     'lot_number' => $item['lot_number'] ?? null,
                     'expiry_date' => $item['expiry_date'] ?? null,
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 
@@ -157,6 +159,8 @@ class GoodsReceiptController extends Controller
                     'lot_number' => $item['lot_number'] ?? null,
                     'expiry_date' => $item['expiry_date'] ?? null,
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 

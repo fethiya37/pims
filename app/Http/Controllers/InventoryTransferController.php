@@ -117,6 +117,8 @@ class InventoryTransferController extends Controller
                     'inventory_transfer_id' => $transfer->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 
@@ -209,6 +211,8 @@ class InventoryTransferController extends Controller
                     'inventory_transfer_id' => $transfer->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 

@@ -104,9 +104,9 @@ class TreatmentConsumptionController extends Controller
                 TreatmentConsumptionItem::create([
                     'treatment_consumption_id' => $consumption->id,
                     'product_id' => $item['product_id'],
-                    'packages' => $item['full_packages'],
-                    'pack_size' => $packSize,
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 
@@ -186,9 +186,9 @@ class TreatmentConsumptionController extends Controller
                 TreatmentConsumptionItem::create([
                     'treatment_consumption_id' => $consumption->id,
                     'product_id' => $item['product_id'],
-                    'packages' => $item['full_packages'],
-                    'pack_size' => $packSize,
                     'quantity' => $totalUnits,
+                    'package' => $item['full_packages'],
+                    'unit' => $item['extra_units'] ?? 0,
                 ]);
             }
 
@@ -240,11 +240,7 @@ class TreatmentConsumptionController extends Controller
                         'reference' => 'TC-' . $consumption->id,
                         'lot_number' => $batch->lot_number,
                         'expiry_date' => $batch->expiry_date,
-                        'packages' => $item->packages,
-                        'pack_size' => $item->pack_size,
                         'quantity' => $takeQty,
-                        'cost_per_unit' => $batch->cost_per_unit,
-                        'price_per_unit' => null,
                         'user_id' => auth()->id(),
                         'notes' => 'Treatment consumption for patient: ' . ($consumption->patient->full_name ?? 'N/A'),
                     ]);
