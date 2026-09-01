@@ -84,11 +84,16 @@
                                                     data-target="#editModal-{{ $receipt->id }}">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <a href="{{ route('goods-receipts.destroy', $receipt->id) }}"
-                                                    class="btn btn-danger btn-sm delete-btn"
-                                                    onclick="return confirm('Delete this receipt?');">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
+                                                <form action="{{ route('goods-receipts.destroy', $receipt->id) }}" 
+                                                      method="POST" 
+                                                      class="d-inline delete-form"
+                                                      onsubmit="return confirm('Delete this receipt?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-danger btn-sm">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </form>
                                                 <a href="{{ route('goods-receipts.receive', $receipt->id) }}"
                                                     class="btn btn-success btn-sm"
                                                     onclick="return confirm('Mark this receipt as received?');">
@@ -113,7 +118,6 @@
             </div>
         </div>
 
-        {{-- CREATE MODAL --}}
         <div class="modal fade" id="modal-xl">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
@@ -202,7 +206,6 @@
                                     </div>
                                 </div>
 
-                                {{-- Lines Table (Create) --}}
                                 <div class="row">
                                     <div class="col-12 table-responsive">
                                         <table class="table table-striped">
@@ -285,7 +288,6 @@
             </div>
         </div>
 
-        {{-- EDIT MODALS --}}
         @foreach ($receipts as $receipt)
             @if ($receipt->status == 'draft')
                 <div class="modal fade edit-modal-class" id="editModal-{{ $receipt->id }}">
@@ -383,7 +385,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- Lines Table (Edit) --}}
                                         <div class="row">
                                             <div class="col-12 table-responsive">
                                                 <table class="table table-striped">
@@ -494,7 +495,6 @@
             @endif
         @endforeach
 
-        {{-- VIEW MODALS --}}
         @foreach ($receipts as $receipt)
             <div class="modal fade" id="viewModal-{{ $receipt->id }}">
                 <div class="modal-dialog modal-lg">
@@ -680,7 +680,6 @@
                     });
                 }
 
-                // ---- DELEGATED EVENTS FOR ADD/REMOVE ROWS (CREATE MODAL) ----
                 document.getElementById('add_items').addEventListener('click', function(e) {
                     var target = e.target.closest('.add-row');
                     if (target) {
@@ -740,7 +739,6 @@
                     }
                 });
 
-                // ---- DELEGATED EVENTS FOR ADD/REMOVE ROWS (EDIT MODALS) ----
                 document.addEventListener('click', function(e) {
                     var target = e.target.closest('.add-edit-row');
                     if (target) {
@@ -801,12 +799,10 @@
                     }
                 });
 
-                // ---- INITIALIZE EXISTING ROWS ----
                 document.querySelectorAll('#add_items tr, [id^="edit_items_"] tr').forEach(function(row) {
                     initRow(row);
                 });
 
-                // ---- DATA TABLES ----
                 if (typeof $ !== 'undefined') {
                     $('#example1').DataTable({
                         responsive: true,
