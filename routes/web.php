@@ -136,6 +136,9 @@ Route::controller(RoleController::class)
 Route::controller(ReportController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'view_reports'])->group(function () {
         Route::get('/stock-balance', 'stockBalance')->name('reports.stock-balance');
+        Route::get('/stock-balance/overall', 'stockBalanceOverall')->name('reports.stock-balance.overall');
+        Route::get('/stock-balance/location', 'stockBalanceLocation')->name('reports.stock-balance.location');
+        Route::get('/stock-balance/batch', 'stockBalanceBatch')->name('reports.stock-balance.batch');
         Route::get('/inter-location-transfer', 'interLocationTransfer')->name('reports.inter-location-transfer');
         Route::get('/treatment-report', 'treatmentConsumption')->name('reports.treatment-consumption');
         Route::get('/sales-report', 'salesReport')->name('reports.sales-report');

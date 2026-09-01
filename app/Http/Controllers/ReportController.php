@@ -34,47 +34,57 @@ class ReportController extends Controller
         return Location::whereIn('id', $ids)->orderBy('name')->get();
     }
 
-   public function stockBalance(Request $request): View
-{
-    $allowedLocations = $this->getLocationsForDropdown();
-    $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+    public function stockBalance(Request $request): View
+    {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $products = Product::orderBy('name')->get();
+        $activeTab = $request->active_tab ?? 'overall';
+        
+        $productId = null;
+        $locationId = null;
+        $overallBalances = collect();
+        $locationBalances = collect();
+        $batchBalances = collect();
 
-    $products = Product::orderBy('name')->get();
-
-    $productId = $request->product_id;
-    $locationId = $request->location_id;
-    $activeTab = $request->active_tab ?? 'overall';
-
-    if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
-        if (empty($locationId)) {
-            $locationId = Auth::user()->location_id;
-        } else {
-            if (!in_array($locationId, $allowedLocationIds)) {
-                $locationId = Auth::user()->location_id;
-            }
-        }
-    } else {
-        if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
-            $locationId = null;
-        }
+        return view('pages.reports.stock_balance', compact(
+            'products',
+            'activeTab',
+            'allowedLocations',
+            'productId',
+            'locationId',
+            'overallBalances',
+            'locationBalances',
+            'batchBalances'
+        ));
     }
 
-    $overallBalances = collect();
-    $locationBalances = collect();
-    $batchBalances = collect();
+    public function stockBalanceOverall(Request $request): View
+    {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+        $products = Product::orderBy('name')->get();
 
-    if ($request->has('product_id') || !empty($locationId)) {
-        $query = StockBatch::with(['product', 'location'])
-            ->whereIn('location_id', $allowedLocationIds);
+        $productId = $request->product_id;
+        $locationId = $request->location_id;
+        $activeTab = 'overall';
 
-        if (!empty($productId)) {
-            $query->where('product_id', $productId);
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        } else {
+            if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
+                $locationId = null;
+            }
         }
-        if (!empty($locationId)) {
-            $query->where('location_id', $locationId);
-        }
 
-        $batchBalances = $query->orderBy('updated_at', 'desc')->get();
+        $overallBalances = collect();
+        $locationBalances = collect();
+        $batchBalances = collect();
 
         $overallQuery = StockBatch::select(
             'product_id',
@@ -91,6 +101,46 @@ class ReportController extends Controller
         $overallBalances = $overallQuery->get()->map(function ($item) {
             return $this->addPackBreakdown($item, $item->product);
         });
+
+        return view('pages.reports.stock_balance', compact(
+            'products',
+            'overallBalances',
+            'locationBalances',
+            'batchBalances',
+            'activeTab',
+            'productId',
+            'locationId',
+            'allowedLocations'
+        ));
+    }
+
+    public function stockBalanceLocation(Request $request): View
+    {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+        $products = Product::orderBy('name')->get();
+
+        $productId = $request->product_id;
+        $locationId = $request->location_id;
+        $activeTab = 'location';
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        } else {
+            if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
+                $locationId = null;
+            }
+        }
+
+        $overallBalances = collect();
+        $locationBalances = collect();
+        $batchBalances = collect();
 
         $locationQuery = StockBatch::select(
             'product_id',
@@ -109,22 +159,67 @@ class ReportController extends Controller
             return $this->addPackBreakdown($item, $item->product);
         });
 
-        $batchBalances = $batchBalances->map(function ($batch) {
-            return $this->addPackBreakdown($batch, $batch->product);
-        });
+        return view('pages.reports.stock_balance', compact(
+            'products',
+            'overallBalances',
+            'locationBalances',
+            'batchBalances',
+            'activeTab',
+            'productId',
+            'locationId',
+            'allowedLocations'
+        ));
     }
 
-    return view('pages.reports.stock_balance', compact(
-        'products',
-        'overallBalances',
-        'locationBalances',
-        'batchBalances',
-        'activeTab',
-        'productId',
-        'locationId',
-        'allowedLocations'
-    ));
-}
+    public function stockBalanceBatch(Request $request): View
+    {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+        $products = Product::orderBy('name')->get();
+
+        $productId = $request->product_id;
+        $locationId = $request->location_id;
+        $activeTab = 'batch';
+
+        if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+            if (empty($locationId)) {
+                $locationId = Auth::user()->location_id;
+            } else {
+                if (!in_array($locationId, $allowedLocationIds)) {
+                    $locationId = Auth::user()->location_id;
+                }
+            }
+        } else {
+            if (!empty($locationId) && !in_array($locationId, $allowedLocationIds)) {
+                $locationId = null;
+            }
+        }
+
+        $overallBalances = collect();
+        $locationBalances = collect();
+        $batchBalances = collect();
+
+        $query = StockBatch::with(['product', 'location'])
+            ->whereIn('location_id', $allowedLocationIds)
+            ->when(!empty($productId), fn($q) => $q->where('product_id', $productId))
+            ->when(!empty($locationId), fn($q) => $q->where('location_id', $locationId))
+            ->orderBy('updated_at', 'desc');
+
+        $batchBalances = $query->get()->map(function ($batch) {
+            return $this->addPackBreakdown($batch, $batch->product);
+        });
+
+        return view('pages.reports.stock_balance', compact(
+            'products',
+            'overallBalances',
+            'locationBalances',
+            'batchBalances',
+            'activeTab',
+            'productId',
+            'locationId',
+            'allowedLocations'
+        ));
+    }
 
     public function interLocationTransfer(Request $request): View
     {
@@ -513,6 +608,47 @@ class ReportController extends Controller
         ));
     }
 
+    public function zeroStockReport(Request $request): View
+    {
+        $allowedLocations = $this->getLocationsForDropdown();
+        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
+        $products = Product::orderBy('name')->get();
+
+        $zeroStockItems = collect();
+
+        foreach ($products as $product) {
+            $totalStock = StockBatch::where('product_id', $product->id)
+                ->whereIn('location_id', $allowedLocationIds)
+                ->sum('quantity');
+
+            if ($totalStock <= 0) {
+                $packSize = $product->default_pack_size ?? 1;
+                $packagingType = $product->packaging_type ?? 'unit';
+                $unit = $product->unit ?? 'unit';
+
+                $zeroStockItems->push((object)[
+                    'product' => $product,
+                    'total_stock' => $totalStock,
+                    'current_stock_units' => $totalStock . ' ' . $unit,
+                    'packaging_type' => $packagingType,
+                    'unit' => $unit,
+                    'pack_size' => $packSize,
+                    'status' => 'Out of Stock',
+                ]);
+            }
+        }
+
+        $totalProducts = $products->count();
+        $totalZeroStock = $zeroStockItems->count();
+
+        return view('pages.reports.zero_stock', compact(
+            'zeroStockItems',
+            'totalProducts',
+            'totalZeroStock'
+        ));
+    }
+
     private function addPackBreakdown($item, $product = null)
     {
         if (!$product) {
@@ -546,45 +682,4 @@ class ReportController extends Controller
         $item->unit = $unit;
         return $item;
     }
-
- public function zeroStockReport(Request $request): View
-{
-    $allowedLocations = $this->getLocationsForDropdown();
-    $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
-
-    $products = Product::orderBy('name')->get();
-
-    $zeroStockItems = collect();
-
-    foreach ($products as $product) {
-        $totalStock = StockBatch::where('product_id', $product->id)
-            ->whereIn('location_id', $allowedLocationIds)
-            ->sum('quantity');
-
-        if ($totalStock <= 0) {
-            $packSize = $product->default_pack_size ?? 1;
-            $packagingType = $product->packaging_type ?? 'unit';
-            $unit = $product->unit ?? 'unit';
-
-            $zeroStockItems->push((object)[
-                'product' => $product,
-                'total_stock' => $totalStock,
-                'current_stock_units' => $totalStock . ' ' . $unit,
-                'packaging_type' => $packagingType,
-                'unit' => $unit,
-                'pack_size' => $packSize,
-                'status' => 'Out of Stock',
-            ]);
-        }
-    }
-
-    $totalProducts = $products->count();
-    $totalZeroStock = $zeroStockItems->count();
-
-    return view('pages.reports.zero_stock', compact(
-        'zeroStockItems',
-        'totalProducts',
-        'totalZeroStock'
-    ));
-}
 }
