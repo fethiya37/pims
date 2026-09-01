@@ -546,4 +546,67 @@ class ReportController extends Controller
         $item->unit = $unit;
         return $item;
     }
+
+    public function zeroStockReport(Request $request): View
+{
+    $allowedLocations = $this->getLocationsForDropdown();
+    $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+
+    $products = Product::orderBy('name')->get();
+
+    $locationId = $request->location_id;
+
+    if (!Auth::user()->role || Auth::user()->role->role_name !== 'Super Admin') {
+        if (empty($locationId)) {
+            $locationId = Auth::user()->location_id;
+        } else {
+            if (!in_array($locationId, $allowedLocationIds)) {
+                $locationId = Auth::user()->location_id;
+            }
+        }
+    }
+
+    $zeroStockItems = collect();
+
+    foreach ($products as $product) {
+        $locationsToCheck = $locationId ? [$locationId] : $allowedLocationIds;
+        
+        foreach ($locationsToCheck as $locId) {
+            $stock = StockBatch::where('product_id', $product->id)
+                ->where('location_id', $locId)
+                ->sum('quantity');
+
+            if ($stock <= 0) {
+                $location = Location::find($locId);
+                $packSize = $product->default_pack_size ?? 1;
+                $packagingType = $product->packaging_type ?? 'unit';
+                $unit = $product->unit ?? 'unit';
+
+                $zeroStockItems->push((object)[
+                    'product' => $product,
+                    'location' => $location,
+                    'current_stock' => $stock,
+                    'current_stock_units' => $stock . ' ' . $unit,
+                    'packaging_type' => $packagingType,
+                    'unit' => $unit,
+                    'status' => 'Out of Stock',
+                ]);
+            }
+        }
+    }
+
+    $totalProducts = $products->count();
+    $totalLocations = $locationId ? 1 : $allowedLocations->count();
+    $totalZeroStock = $zeroStockItems->count();
+
+    return view('pages.reports.zero_stock', compact(
+        'zeroStockItems',
+        'products',
+        'locationId',
+        'allowedLocations',
+        'totalProducts',
+        'totalLocations',
+        'totalZeroStock'
+    ));
+}
 }

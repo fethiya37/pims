@@ -142,6 +142,7 @@ Route::controller(ReportController::class)
         Route::get('/transaction-report', 'transactionReport')->name('reports.transaction');
         Route::get('/low-stock', 'lowStockReport')->name('reports.low-stock');
         Route::get('/expiry-report', 'expiryReport')->name('reports.expiry');
+        Route::get('/zero-stock-report', 'zeroStockReport')->name('reports.zero-stock');
     });
 
 Route::prefix('notifications')->name('notifications.')->middleware('auth')->group(function () {
