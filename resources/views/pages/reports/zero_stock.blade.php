@@ -7,44 +7,18 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-exclamation-triangle"></i> Zero Stock Report
-                    <small class="text-muted d-block">Products with no available stock</small>
+                    <small class="text-muted d-block">Products with no available stock across all locations</small>
                 </h3>
                 <div class="card-tools">
-                    <span class="badge badge-danger">{{ $zeroStockItems->count() }}</span>
+                    <span class="badge badge-danger">{{ $totalZeroStock }}</span>
                     <span class="text-muted">out of stock</span>
                 </div>
             </div>
 
             <div class="card-body">
-                <form method="GET" action="{{ route('reports.zero-stock') }}" class="mb-3">
-                    <div class="row">
-                        <div class="col-md-4">
-                            <div class="form-group mb-0">
-                                <label>Location</label>
-                                <select name="location_id" class="form-control select2" onchange="this.form.submit()">
-                                    <option value="">All Locations</option>
-                                    @foreach ($allowedLocations as $location)
-                                        <option value="{{ $location->id }}" {{ $locationId == $location->id ? 'selected' : '' }}>
-                                            {{ $location->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <div class="form-group mb-0">
-                                <label>&nbsp;</label>
-                                <a href="{{ route('reports.zero-stock') }}" class="btn btn-secondary btn-block">Reset</a>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-
-                <hr>
-
                 @if ($zeroStockItems->isEmpty())
                     <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> All products have stock available at all locations.
+                        <i class="fas fa-check-circle"></i> All products have stock available.
                     </div>
                 @else
                     <div class="table-responsive">
@@ -52,9 +26,9 @@
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Product</th>
+                                    <th>Product Code</th>
+                                    <th>Product Name</th>
                                     <th>Category</th>
-                                    <th>Location</th>
                                     <th>Current Stock</th>
                                     <th>Packaging Type</th>
                                     <th>Status</th>
@@ -65,23 +39,19 @@
                                     <tr>
                                         <td>{{ $index + 1 }}</td>
                                         <td>
+                                            <span class="badge badge-info">{{ $item->product->item_code ?? 'N/A' }}</span>
+                                        </td>
+                                        <td>
                                             <strong>{{ $item->product->name }}</strong>
-                                            @if ($item->product->item_code)
-                                                <br>
-                                                <small class="text-muted">Code: {{ $item->product->item_code }}</small>
-                                            @endif
                                         </td>
                                         <td>{{ optional($item->product->category)->name ?? 'N/A' }}</td>
-                                        <td>
-                                            <span class="badge badge-secondary">{{ optional($item->location)->name ?? 'N/A' }}</span>
-                                        </td>
                                         <td>
                                             <span class="badge badge-danger badge-lg">{{ $item->current_stock_units }}</span>
                                         </td>
                                         <td>
                                             @if ($item->packaging_type === 'pack')
                                                 <span class="badge badge-warning">Pack</span>
-                                                <small class="d-block">Pack Size: {{ $item->product->default_pack_size ?? 1 }}</small>
+                                                <small class="d-block">Size: {{ $item->pack_size }} {{ $item->unit }}</small>
                                             @else
                                                 <span class="badge badge-secondary">Unit</span>
                                             @endif
@@ -100,12 +70,7 @@
                     <div class="mt-3">
                         <p class="text-muted">
                             <i class="fas fa-info-circle"></i> 
-                            Showing {{ $zeroStockItems->count() }} product(s) out of stock
-                            @if($locationId)
-                                at {{ $allowedLocations->where('id', $locationId)->first()->name ?? 'selected location' }}
-                            @else
-                                across all locations
-                            @endif
+                            Showing {{ $totalZeroStock }} out of {{ $totalProducts }} total product(s) with zero stock
                         </p>
                     </div>
                 @endif
@@ -118,7 +83,6 @@
 @push('scripts')
 <script>
 $(function() {
-    $('.select2').select2();
     $('#zero_stock_table').DataTable({
         responsive: true,
         lengthChange: false,
