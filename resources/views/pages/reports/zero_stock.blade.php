@@ -5,17 +5,13 @@
     <div class="container-fluid">
         <div class="card card-primary card-outline">
             <div class="card-header">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h3 class="card-title">Zero Stock Report</h3>
-                        <small class="text-muted d-block">Products with no available stock</small>
-                    </div>
-                    <div class="col-md-6">
-                        <span class="float-right">
-                            <span class="badge badge-danger badge-lg">{{ $totalZeroStock }}</span>
-                            <span class="text-muted">products out of stock</span>
-                        </span>
-                    </div>
+                <h3 class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i> Zero Stock Report
+                    <small class="text-muted d-block">Products with no available stock</small>
+                </h3>
+                <div class="card-tools">
+                    <span class="badge badge-danger">{{ $zeroStockItems->count() }}</span>
+                    <span class="text-muted">out of stock</span>
                 </div>
             </div>
 
@@ -45,42 +41,6 @@
                 </form>
 
                 <hr>
-
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <div class="small-box bg-danger">
-                            <div class="inner">
-                                <h3>{{ $totalZeroStock }}</h3>
-                                <p>Products Out of Stock</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-box-open"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="small-box bg-info">
-                            <div class="inner">
-                                <h3>{{ $totalProducts }}</h3>
-                                <p>Total Products</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-cubes"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="small-box bg-warning">
-                            <div class="inner">
-                                <h3>{{ $totalLocations }}</h3>
-                                <p>Locations Checked</p>
-                            </div>
-                            <div class="icon">
-                                <i class="fas fa-map-marker-alt"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 @if ($zeroStockItems->isEmpty())
                     <div class="alert alert-success">
@@ -135,6 +95,18 @@
                                 @endforeach
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mt-3">
+                        <p class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Showing {{ $zeroStockItems->count() }} product(s) out of stock
+                            @if($locationId)
+                                at {{ $allowedLocations->where('id', $locationId)->first()->name ?? 'selected location' }}
+                            @else
+                                across all locations
+                            @endif
+                        </p>
                     </div>
                 @endif
             </div>
