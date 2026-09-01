@@ -7,18 +7,18 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <i class="fas fa-exclamation-triangle"></i> Zero Stock Report
-                    <small class="text-muted d-block">Products with no available stock across all locations</small>
+                    <small class="text-muted d-block">Products with no stock records</small>
                 </h3>
                 <div class="card-tools">
                     <span class="badge badge-danger">{{ $totalZeroStock }}</span>
-                    <span class="text-muted">out of stock</span>
+                    <span class="text-muted">no stock records</span>
                 </div>
             </div>
 
             <div class="card-body">
                 @if ($zeroStockItems->isEmpty())
                     <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> All products have stock available.
+                        <i class="fas fa-check-circle"></i> All products have stock records.
                     </div>
                 @else
                     <div class="table-responsive">
@@ -58,7 +58,7 @@
                                         </td>
                                         <td>
                                             <span class="badge badge-danger">
-                                                <i class="fas fa-times-circle"></i> Out of Stock
+                                                <i class="fas fa-times-circle"></i> No Stock Record
                                             </span>
                                         </td>
                                     </tr>
@@ -70,7 +70,7 @@
                     <div class="mt-3">
                         <p class="text-muted">
                             <i class="fas fa-info-circle"></i> 
-                            Showing {{ $totalZeroStock }} out of {{ $totalProducts }} total product(s) with zero stock
+                            Showing {{ $totalZeroStock }} out of {{ $totalProducts }} total product(s) with no stock records
                         </p>
                     </div>
                 @endif

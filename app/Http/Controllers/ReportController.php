@@ -620,9 +620,9 @@ class ReportController extends Controller
     foreach ($products as $product) {
         $stockRecords = StockBatch::where('product_id', $product->id)
             ->whereIn('location_id', $allowedLocationIds)
-            ->get();
+            ->exists();
 
-        if ($stockRecords->isEmpty()) {
+        if (!$stockRecords) {
             $packSize = $product->default_pack_size ?? 1;
             $packagingType = $product->packaging_type ?? 'unit';
             $unit = $product->unit ?? 'unit';
