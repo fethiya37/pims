@@ -609,45 +609,45 @@ class ReportController extends Controller
     }
 
     public function zeroStockReport(Request $request): View
-    {
-        $allowedLocations = $this->getLocationsForDropdown();
-        $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
+{
+    $allowedLocations = $this->getLocationsForDropdown();
+    $allowedLocationIds = $allowedLocations->pluck('id')->toArray();
 
-        $products = Product::orderBy('name')->get();
+    $products = Product::orderBy('name')->get();
 
-        $zeroStockItems = collect();
+    $zeroStockItems = collect();
 
-        foreach ($products as $product) {
-            $totalStock = StockBatch::where('product_id', $product->id)
-                ->whereIn('location_id', $allowedLocationIds)
-                ->sum('quantity');
+    foreach ($products as $product) {
+        $stockRecords = StockBatch::where('product_id', $product->id)
+            ->whereIn('location_id', $allowedLocationIds)
+            ->get();
 
-            if ($totalStock <= 0) {
-                $packSize = $product->default_pack_size ?? 1;
-                $packagingType = $product->packaging_type ?? 'unit';
-                $unit = $product->unit ?? 'unit';
+        if ($stockRecords->isEmpty()) {
+            $packSize = $product->default_pack_size ?? 1;
+            $packagingType = $product->packaging_type ?? 'unit';
+            $unit = $product->unit ?? 'unit';
 
-                $zeroStockItems->push((object)[
-                    'product' => $product,
-                    'total_stock' => $totalStock,
-                    'current_stock_units' => $totalStock . ' ' . $unit,
-                    'packaging_type' => $packagingType,
-                    'unit' => $unit,
-                    'pack_size' => $packSize,
-                    'status' => 'Out of Stock',
-                ]);
-            }
+            $zeroStockItems->push((object)[
+                'product' => $product,
+                'total_stock' => 0,
+                'current_stock_units' => '0 ' . $unit,
+                'packaging_type' => $packagingType,
+                'unit' => $unit,
+                'pack_size' => $packSize,
+                'status' => 'No Stock Record',
+            ]);
         }
-
-        $totalProducts = $products->count();
-        $totalZeroStock = $zeroStockItems->count();
-
-        return view('pages.reports.zero_stock', compact(
-            'zeroStockItems',
-            'totalProducts',
-            'totalZeroStock'
-        ));
     }
+
+    $totalProducts = $products->count();
+    $totalZeroStock = $zeroStockItems->count();
+
+    return view('pages.reports.zero_stock', compact(
+        'zeroStockItems',
+        'totalProducts',
+        'totalZeroStock'
+    ));
+}
 
     private function addPackBreakdown($item, $product = null)
     {
