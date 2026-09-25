@@ -34,7 +34,7 @@ class InventoryAdjustmentController extends Controller
             $isSuperAdmin = false;
         }
 
-        $products = Product::all();
+        $products = Product::orderBy('name', 'asc')->get();
         return view('pages.inventory_adjustments.index', compact('adjustments', 'locations', 'products', 'isSuperAdmin'));
     }
 

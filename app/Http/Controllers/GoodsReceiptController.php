@@ -38,7 +38,7 @@ class GoodsReceiptController extends Controller
             $isSuperAdmin = false;
         }
 
-        $products = Product::all();
+        $products = Product::orderBy('name', 'asc')->get();
         $suppliers = Supplier::all();
 
         return view('pages.goods_receipts.index', compact('receipts', 'locations', 'products', 'suppliers', 'isSuperAdmin'));

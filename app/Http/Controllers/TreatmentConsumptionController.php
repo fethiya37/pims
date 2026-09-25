@@ -36,7 +36,7 @@ class TreatmentConsumptionController extends Controller
         }
 
         $patients = Patient::all();
-        $products = Product::all();
+        $products = Product::orderBy('name', 'asc')->get();
         $users = \App\Models\User::whereHas('role', function ($query) {
             $query->where('role_name', 'like', '%doctor%');
         })->get();

@@ -34,7 +34,7 @@ class ProductSaleController extends Controller
             $isSuperAdmin = false;
         }
 
-        $products = Product::all();
+        $products = Product::orderBy('name', 'asc')->get();
 
         return view('pages.sales.index', compact('sales', 'locations', 'products', 'isSuperAdmin'));
     }

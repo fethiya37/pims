@@ -33,7 +33,7 @@ class InventoryTransferController extends Controller
             $locations = Location::where('id', $user->location_id)->get();
         }
 
-        $products = Product::all();
+        $products = Product::orderBy('name', 'asc')->get();
         $stores = Location::where('type', 'store')->get();
         $saleStores = Location::where('type', 'sale')->get();
         $pointOfUseStores = Location::where('type', 'point_of_use')->get();
