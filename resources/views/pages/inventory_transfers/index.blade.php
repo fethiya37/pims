@@ -9,7 +9,7 @@
                     <div class="row">
                         <div class="col-6">
                             <div class="pl-3">
-                                <b>Inventory Transfers: {{ $transfers->count() }}</b>
+                                <b>Inventory Transfers: <span id="totalTransfers">—</span></b>
                             </div>
                         </div>
                         <div class="col-6">
@@ -31,7 +31,7 @@
 
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="example1" class="table table-bordered table-striped table-hover">
+                        <table id="transfersTable" class="table table-bordered table-striped table-hover">
                             <thead>
                                 <tr>
                                     <th>No</th>
@@ -39,113 +39,12 @@
                                     <th>Requested Date</th>
                                     <th>From</th>
                                     <th>To</th>
-                                    <th>Items</th>
+                                    <th style="width: 240px;">Items</th>
                                     <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @forelse ($transfers as $index => $transfer)
-                                    <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td>#{{ $transfer->id }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($transfer->requested_date)->toFormattedDateString() }}</td>
-                                        <td>{{ optional($transfer->fromLocation)->name ?? 'N/A' }}</td>
-                                        <td>{{ optional($transfer->toLocation)->name ?? 'N/A' }}</td>
-                                        <td>
-                                            @if ($transfer->items->count() > 0)
-                                                <table class="table table-sm table-bordered">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Product</th>
-                                                            <th>Qty</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach ($transfer->items as $item)
-                                                            <tr>
-                                                                <td>{{ $item->product->name }}</td>
-                                                                <td>{{ $item->quantity }}</td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            @else
-                                                <span class="text-muted">No items</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @php
-                                                $statusClass = [
-                                                    'pending' => 'warning',
-                                                    'approved' => 'info',
-                                                    'issued' => 'primary',
-                                                    'received' => 'success',
-                                                    'rejected' => 'danger',
-                                                ][$transfer->status] ?? 'secondary';
-                                            @endphp
-                                            <span class="badge badge-{{ $statusClass }}">{{ ucfirst($transfer->status) }}</span>
-                                        </td>
-                                        <td>
-                                            @if ($transfer->status == 'pending')
-                                                <a type="button" class="btn btn-info btn-sm" data-toggle="modal"
-                                                    data-target="#editTransferModal-{{ $transfer->id }}">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <form action="{{ route('inventory-transfers.destroy', $transfer->id) }}" 
-                                                      method="POST" 
-                                                      class="d-inline delete-form"
-                                                      onsubmit="return confirm('Delete this transfer?');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger btn-sm">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </form>
-
-                                                @if ($isSuperAdmin || Auth::user()->location_id == $transfer->from_location_id)
-                                                    <a href="{{ route('inventory-transfers.approve', $transfer->id) }}"
-                                                        class="btn btn-success btn-sm"
-                                                        onclick="return confirm('Approve this transfer?');">
-                                                        <i class="fas fa-check"></i> Approve
-                                                    </a>
-                                                    <button type="button" class="btn btn-danger btn-sm" data-toggle="modal"
-                                                        data-target="#rejectModal-{{ $transfer->id }}">
-                                                        <i class="fas fa-times"></i>
-                                                    </button>
-                                                @endif
-                                            @endif
-
-                                            @if ($transfer->status == 'approved')
-                                                @if ($isSuperAdmin || Auth::user()->location_id == $transfer->from_location_id)
-                                                    <a href="{{ route('inventory-transfers.issue', $transfer->id) }}"
-                                                        class="btn btn-primary btn-sm"
-                                                        onclick="return confirm('Issue this transfer?');">
-                                                        <i class="fas fa-clipboard-check"></i> Issue
-                                                    </a>
-                                                @endif
-                                            @endif
-
-                                            @if ($transfer->status == 'issued')
-                                                @if ($isSuperAdmin || Auth::user()->location_id == $transfer->to_location_id)
-                                                    <a href="{{ route('inventory-transfers.receive', $transfer->id) }}"
-                                                        class="btn btn-success btn-sm"
-                                                        onclick="return confirm('Receive this transfer?');">
-                                                        <i class="fas fa-box"></i> Receive
-                                                    </a>
-                                                @endif
-                                            @endif
-
-                                            <button type="button" class="btn btn-secondary btn-sm" data-toggle="modal"
-                                                data-target="#viewTransferModal-{{ $transfer->id }}">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="8" class="text-center">No transfers found</td></tr>
-                                @endforelse
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
@@ -293,517 +192,263 @@
             </div>
         </div>
 
-        {{-- EDIT MODALS --}}
-        @foreach ($transfers as $transfer)
-            @if ($transfer->status == 'pending')
-                <div class="modal fade" id="editTransferModal-{{ $transfer->id }}">
-                    <div class="modal-dialog modal-lg">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h4 class="modal-title">Edit Transfer - #{{ $transfer->id }}</h4>
-                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-                            <div class="modal-body">
-                                <form action="{{ route('inventory-transfers.update', $transfer->id) }}" method="POST">
-                                    @csrf
-                                    @method('PUT')
-                                    <div class="invoice p-3 mb-3">
-                                        <div class="row">
-                                            <div class="col-12">
-                                                <h4>
-                                                    <i class="fas fa-exchange-alt"></i> Edit Transfer
-                                                    <small class="float-right">Requested: {{ \Carbon\Carbon::parse($transfer->requested_date)->toFormattedDateString() }}</small>
-                                                </h4>
-                                            </div>
-                                        </div>
-
-                                        <div class="row invoice-info mb-4">
-                                            <div class="col-sm-4">
-                                                <div class="form-group">
-                                                    <label>From (Store)</label>
-                                                    <select name="from_location_id" class="form-control" required>
-                                                        @foreach ($stores as $store)
-                                                            <option value="{{ $store->id }}"
-                                                                {{ $store->id == $transfer->from_location_id ? 'selected' : '' }}>
-                                                                {{ $store->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-sm-4">
-                                                <div class="form-group">
-                                                    <label>To (Sale / Point of Use)</label>
-                                                    <select name="to_location_id" class="form-control" required
-                                                        {{ !$isSuperAdmin ? 'disabled' : '' }}>
-                                                        @foreach ($saleStores as $saleStore)
-                                                            <option value="{{ $saleStore->id }}"
-                                                                {{ $saleStore->id == $transfer->to_location_id ? 'selected' : '' }}>
-                                                                {{ $saleStore->name }} (Sale)
-                                                            </option>
-                                                        @endforeach
-                                                        @foreach ($pointOfUseStores as $pointOfUse)
-                                                            <option value="{{ $pointOfUse->id }}"
-                                                                {{ $pointOfUse->id == $transfer->to_location_id ? 'selected' : '' }}>
-                                                                {{ $pointOfUse->name }} (Point of Use)
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                    @if (!$isSuperAdmin)
-                                                        <input type="hidden" name="to_location_id" value="{{ $transfer->to_location_id }}">
-                                                    @endif
-                                                </div>
-                                            </div>
-                                            <div class="col-sm-4">
-                                                <div class="form-group">
-                                                    <label>Collected By</label>
-                                                    <input type="text" name="collected_by" class="form-control"
-                                                        value="{{ $transfer->collected_by }}" placeholder="Who collected the items?">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="row invoice-info mb-4">
-                                            <div class="col-sm-12">
-                                                <div class="form-group">
-                                                    <label>Remarks</label>
-                                                    <input type="text" name="remarks" class="form-control"
-                                                        value="{{ $transfer->remarks }}" placeholder="Optional remarks">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="row">
-                                            <div class="col-12 table-responsive">
-                                                <table class="table table-striped">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Product</th>
-                                                            <th>Full Packages</th>
-                                                            <th>Units</th>
-                                                            <th>Pack Size</th>
-                                                            <th>Total Qty</th>
-                                                            <th></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody id="edit_items_{{ $transfer->id }}">
-                                                        @foreach ($transfer->items as $index => $item)
-                                                            @php
-                                                                $product = $item->product;
-                                                                $packSize = $product->default_pack_size;
-                                                                $isUnitType = $product->packaging_type === 'unit';
-                                                                
-                                                                if ($isUnitType) {
-                                                                    $fullPkgs = 0;
-                                                                    $extra = $item->unit ?? $item->quantity;
-                                                                } else {
-                                                                    $fullPkgs = $item->package ?? floor($item->quantity / $packSize);
-                                                                    $extra = $item->unit ?? ($item->quantity - ($fullPkgs * $packSize));
-                                                                }
-                                                            @endphp
-                                                            <tr>
-                                                                <td style="width: 180px;">
-                                                                    <select name="items[{{ $index }}][product_id]" class="form-control product-select" required>
-                                                                        <option value="{{ $item->product_id }}"
-                                                                            data-pack-size="{{ $product->default_pack_size }}"
-                                                                            data-packaging-type="{{ $product->packaging_type ?? 'pack' }}">
-                                                                            {{ optional($item->product)->name ?? 'N/A' }}
-                                                                        </option>
-                                                                        @foreach ($products as $product)
-                                                                            <option value="{{ $product->id }}"
-                                                                                data-pack-size="{{ $product->default_pack_size }}"
-                                                                                data-packaging-type="{{ $product->packaging_type ?? 'pack' }}"
-                                                                                {{ $product->id == $item->product_id ? 'selected' : '' }}>
-                                                                                {{ $product->name }}
-                                                                            </option>
-                                                                        @endforeach
-                                                                    </select>
-                                                                </td>
-                                                                <td>
-                                                                    <input type="number" name="items[{{ $index }}][full_packages]"
-                                                                        class="form-control packages-input"
-                                                                        value="{{ $fullPkgs }}" min="0" step="1" required
-                                                                        {{ $isUnitType ? 'readonly' : '' }}>
-                                                                </td>
-                                                                <td>
-                                                                    <input type="number" name="items[{{ $index }}][extra_units]"
-                                                                        class="form-control extra-input"
-                                                                        value="{{ $extra }}" min="0" step="1">
-                                                                </td>
-                                                                <td>
-                                                                    <input type="text" class="form-control pack-size-display"
-                                                                        value="{{ $packSize }}" readonly>
-                                                                </td>
-                                                                <td>
-                                                                    <input type="text" name="items[{{ $index }}][quantity]"
-                                                                        class="form-control quantity-display"
-                                                                        value="{{ $item->quantity }}" readonly>
-                                                                </td>
-                                                                <td>
-                                                                    <button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button>
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                                <button type="button" class="btn btn-success btn-sm add-edit-row"
-                                                    data-target="edit_items_{{ $transfer->id }}"
-                                                    data-index="{{ count($transfer->items) }}">
-                                                    <i class="fa fa-plus-circle"></i> Add Product
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <div class="row no-print">
-                                            <div class="col-12">
-                                                <button type="submit" class="btn btn-success float-right">
-                                                    Update Transfer
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
+        {{-- SHARED EDIT MODAL --}}
+        <div class="modal fade" id="editTransferModal">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Edit Transfer</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
                     </div>
+                    <div class="modal-body" id="editTransferBody"></div>
                 </div>
-            @endif
-        @endforeach
+            </div>
+        </div>
 
-        {{-- REJECT MODALS --}}
-        @foreach ($transfers as $transfer)
-            @if ($transfer->status == 'pending')
-                <div class="modal fade" id="rejectModal-{{ $transfer->id }}">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header bg-danger text-white">
-                                <h5 class="modal-title">Reject Transfer</h5>
-                                <button type="button" class="close text-white" data-dismiss="modal">
-                                    <span aria-hidden="true">&times;</span>
-                                </button>
-                            </div>
-                            <form action="{{ route('inventory-transfers.reject', $transfer->id) }}" method="POST">
-                                @csrf
-                                <div class="modal-body">
-                                    <div class="form-group">
-                                        <label>Remarks</label>
-                                        <textarea name="remarks" class="form-control" rows="3" required></textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                                    <button type="submit" class="btn btn-danger">Reject</button>
-                                </div>
-                            </form>
-                        </div>
+        {{-- SHARED REJECT MODAL --}}
+        <div class="modal fade" id="rejectTransferModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Reject Transfer</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
                     </div>
-                </div>
-            @endif
-        @endforeach
-
-        {{-- VIEW MODALS --}}
-        @foreach ($transfers as $transfer)
-            <div class="modal fade" id="viewTransferModal-{{ $transfer->id }}">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header bg-info text-white">
-                            <h5 class="modal-title">Transfer Details - #{{ $transfer->id }}</h5>
-                            <button type="button" class="close text-white" data-dismiss="modal">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
+                    <form id="rejectTransferForm" method="POST">
+                        @csrf
                         <div class="modal-body">
-                            <div class="invoice p-3 mb-3">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <h4>
-                                            <i class="fas fa-exchange-alt"></i> Transfer Request
-                                            <small class="float-right">Requested: {{ \Carbon\Carbon::parse($transfer->requested_date)->toFormattedDateString() }}</small>
-                                        </h4>
-                                    </div>
-                                </div>
-
-                                <div class="row invoice-info mb-3">
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>From</strong>
-                                        <address class="mb-0">{{ optional($transfer->fromLocation)->name ?? 'N/A' }}</address>
-                                    </div>
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>To</strong>
-                                        <address class="mb-0">{{ optional($transfer->toLocation)->name ?? 'N/A' }}</address>
-                                    </div>
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>Status</strong>
-                                        <address class="mb-0"><span class="badge badge-{{ $statusClass }}">{{ ucfirst($transfer->status) }}</span></address>
-                                    </div>
-                                </div>
-
-                                <div class="row invoice-info mb-3">
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>Requested By</strong>
-                                        <address class="mb-0">{{ optional($transfer->requestedBy)->name ?? 'N/A' }}</address>
-                                    </div>
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>Approved By</strong>
-                                        <address class="mb-0">{{ optional($transfer->approvedBy)->name ?? 'N/A' }}</address>
-                                    </div>
-                                    <div class="col-sm-4 invoice-col">
-                                        <strong>Collected By</strong>
-                                        <address class="mb-0">{{ $transfer->collected_by ?? 'N/A' }}</address>
-                                    </div>
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-12 table-responsive">
-                                        <table class="table table-striped table-sm">
-                                            <thead>
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Product</th>
-                                                    <th>Quantity</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @forelse ($transfer->items as $i => $item)
-                                                    <tr>
-                                                        <td>{{ $i + 1 }}</td>
-                                                        <td>{{ optional($item->product)->name ?? 'N/A' }}</td>
-                                                        <td>{{ $item->quantity }}</td>
-                                                    </tr>
-                                                @empty
-                                                    <tr><td colspan="3" class="text-center text-muted">No items</td></tr>
-                                                @endforelse
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-
-                                @if ($transfer->remarks)
-                                    <div class="row">
-                                        <div class="col-12">
-                                            <p class="lead">Remarks</p>
-                                            <p class="text-muted">{{ $transfer->remarks }}</p>
-                                        </div>
-                                    </div>
-                                @endif
+                            <div class="form-group">
+                                <label>Remarks</label>
+                                <textarea name="remarks" class="form-control" rows="3" required></textarea>
                             </div>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-danger">Reject</button>
                         </div>
-                    </div>
+                    </form>
                 </div>
             </div>
-        @endforeach
-
-        <div id="transfer-data"
-             data-products='{{ json_encode($products->map(fn($p) => ['id' => $p->id, 'name' => $p->name, 'pack_size' => $p->default_pack_size, 'packaging_type' => $p->packaging_type ?? 'pack'])->toArray()) }}'>
         </div>
 
-        <script type="text/javascript">
-            (function() {
-                var dataEl = document.getElementById('transfer-data');
-                var products = JSON.parse(dataEl.dataset.products || '[]');
+        {{-- SHARED VIEW MODAL --}}
+        <div class="modal fade" id="viewTransferModal">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-info text-white">
+                        <h5 class="modal-title">Transfer Details</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="viewTransferBody"></div>
+                </div>
+            </div>
+        </div>
 
-                function getProductPackSize(productId) {
-                    var found = products.find(function(p) { return p.id == productId; });
-                    return found ? found.pack_size : 0;
-                }
-
-                function getProductPackagingType(productId) {
-                    var found = products.find(function(p) { return p.id == productId; });
-                    return found ? found.packaging_type : 'pack';
-                }
-
-                function updatePackSize(row) {
-                    var select = row.querySelector('.product-select');
-                    var display = row.querySelector('.pack-size-display');
-                    if (!select || !display) return;
-                    var productId = select.value;
-                    display.value = getProductPackSize(productId);
-                }
-
-                function updatePackagesDisabled(row) {
-                    var select = row.querySelector('.product-select');
-                    var packagesInput = row.querySelector('.packages-input');
-                    if (!select || !packagesInput) return;
-                    var productId = select.value;
-                    var pType = getProductPackagingType(productId);
-                    if (pType === 'unit') {
-                        packagesInput.readOnly = true;
-                        packagesInput.value = 0;
-                    } else {
-                        packagesInput.readOnly = false;
-                    }
-                }
-
-                function updateQuantity(row) {
-                    var packagesInput = row.querySelector('.packages-input');
-                    var extraInput = row.querySelector('.extra-input');
-                    var quantityDisplay = row.querySelector('.quantity-display');
-                    var packSizeDisplay = row.querySelector('.pack-size-display');
-                    if (!packagesInput || !extraInput || !quantityDisplay || !packSizeDisplay) return;
-
-                    var packSize = parseInt(packSizeDisplay.value) || 0;
-                    var packages = parseInt(packagesInput.value) || 0;
-                    var extra = parseFloat(extraInput.value) || 0;
-                    var total = (packages * packSize) + extra;
-                    quantityDisplay.value = total.toFixed(0);
-                }
-
-                function initRow(row) {
-                    updatePackSize(row);
-                    updatePackagesDisabled(row);
-                    updateQuantity(row);
-
-                    var packagesInput = row.querySelector('.packages-input');
-                    var extraInput = row.querySelector('.extra-input');
-                    var productSelect = row.querySelector('.product-select');
-
-                    if (packagesInput) packagesInput.addEventListener('input', function() { updateQuantity(row); });
-                    if (extraInput) extraInput.addEventListener('input', function() { updateQuantity(row); });
-                    if (productSelect) productSelect.addEventListener('change', function() {
-                        updatePackSize(row);
-                        updatePackagesDisabled(row);
-                        updateQuantity(row);
-                    });
-
-                    if (productSelect) {
-                        var initialProductId = productSelect.value;
-                        if (initialProductId) {
-                            var found = products.find(function(p) { return p.id == initialProductId; });
-                            if (found && found.packaging_type === 'unit') {
-                                packagesInput.readOnly = true;
-                                packagesInput.value = 0;
-                            }
-                        }
-                    }
-                }
-
-                document.getElementById('add_items').addEventListener('click', function(e) {
-                    var target = e.target.closest('.add-row');
-                    if (target) {
-                        e.preventDefault();
-                        var tbody = target.closest('tbody');
-                        var rowCount = tbody.querySelectorAll('tr').length;
-                        var newRow = document.createElement('tr');
-                        var opts = '<option value="">Select</option>';
-                        products.forEach(function(p) {
-                            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
-                        });
-                        newRow.innerHTML = `
-                            <td style="width: 180px;">
-                                <select name="items[${rowCount}][product_id]" class="form-control product-select" required>
-                                    ${opts}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="items[${rowCount}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
-                            </td>
-                            <td>
-                                <input type="number" name="items[${rowCount}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
-                            </td>
-                            <td>
-                                <input type="text" class="form-control pack-size-display" value="0" readonly>
-                            </td>
-                            <td>
-                                <input type="text" name="items[${rowCount}][quantity]" class="form-control quantity-display" readonly>
-                            </td>
-                            <td>
-                                <div class="d-flex">
-                                    <button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button>
-                                    <button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button>
-                                </div>
-                            </td>
-                        `;
-                        tbody.appendChild(newRow);
-                        initRow(newRow);
-                    }
-
-                    var removeTarget = e.target.closest('.remove-tr');
-                    if (removeTarget) {
-                        e.preventDefault();
-                        var row = removeTarget.closest('tr');
-                        var tbody = row.closest('tbody');
-                        if (tbody.querySelectorAll('tr').length > 1) {
-                            row.remove();
-                        } else {
-                            alert('You must have at least one product.');
-                        }
-                    }
-                });
-
-                document.addEventListener('click', function(e) {
-                    var target = e.target.closest('.add-edit-row');
-                    if (target) {
-                        e.preventDefault();
-                        var targetId = target.dataset.target;
-                        var container = document.getElementById(targetId);
-                        if (!container) return;
-                        var rowCount = container.querySelectorAll('tr').length;
-                        var idx = parseInt(target.dataset.index) || rowCount;
-                        var opts = '<option value="">Select</option>';
-                        products.forEach(function(p) {
-                            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
-                        });
-                        var newRow = document.createElement('tr');
-                        newRow.innerHTML = `
-                            <td style="width: 180px;">
-                                <select name="items[${idx}][product_id]" class="form-control product-select" required>
-                                    ${opts}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="items[${idx}][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
-                            </td>
-                            <td>
-                                <input type="number" name="items[${idx}][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
-                            </td>
-                            <td>
-                                <input type="text" class="form-control pack-size-display" value="0" readonly>
-                            </td>
-                            <td>
-                                <input type="text" name="items[${idx}][quantity]" class="form-control quantity-display" readonly>
-                            </td>
-                            <td>
-                                <button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button>
-                            </td>
-                        `;
-                        container.appendChild(newRow);
-                        initRow(newRow);
-                        target.dataset.index = idx + 1;
-                    }
-
-                    var removeEditTarget = e.target.closest('.remove-edit-tr');
-                    if (removeEditTarget) {
-                        e.preventDefault();
-                        var row = removeEditTarget.closest('tr');
-                        var tbody = row.closest('tbody');
-                        if (tbody.querySelectorAll('tr').length > 1) {
-                            row.remove();
-                        } else {
-                            alert('You must have at least one product.');
-                        }
-                    }
-                });
-
-                document.querySelectorAll('#add_items tr, [id^="edit_items_"] tr').forEach(function(row) {
-                    initRow(row);
-                });
-
-                if (typeof $ !== 'undefined') {
-                    $('#example1').DataTable({
-                        responsive: true,
-                        lengthChange: false,
-                        autoWidth: false,
-                        pageLength: 20,
-                        buttons: ["csv", "excel", "pdf", "print"]
-                    }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
-                }
-            })();
+        <script id="transfer-data" type="application/json">
+            {!! json_encode($products->map(fn($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'pack_size' => $p->default_pack_size,
+                'packaging_type' => $p->packaging_type ?? 'pack',
+            ])->toArray()) !!}
         </script>
     </div>
 </section>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var products = JSON.parse(document.getElementById('transfer-data').textContent || '[]');
+
+    function getProductPackSize(productId) {
+        var found = products.find(function (p) { return p.id == productId; });
+        return found ? found.pack_size : 0;
+    }
+
+    function getProductPackagingType(productId) {
+        var found = products.find(function (p) { return p.id == productId; });
+        return found ? found.packaging_type : 'pack';
+    }
+
+    function updatePackSize(row) {
+        var select = row.querySelector('.product-select');
+        var display = row.querySelector('.pack-size-display');
+        if (!select || !display) return;
+        display.value = getProductPackSize(select.value);
+    }
+
+    function updatePackagesDisabled(row) {
+        var select = row.querySelector('.product-select');
+        var packagesInput = row.querySelector('.packages-input');
+        if (!select || !packagesInput) return;
+        if (getProductPackagingType(select.value) === 'unit') {
+            packagesInput.readOnly = true;
+            packagesInput.value = 0;
+        } else {
+            packagesInput.readOnly = false;
+        }
+    }
+
+    function updateQuantity(row) {
+        var packagesInput = row.querySelector('.packages-input');
+        var extraInput = row.querySelector('.extra-input');
+        var quantityDisplay = row.querySelector('.quantity-display');
+        var packSizeDisplay = row.querySelector('.pack-size-display');
+        if (!packagesInput || !extraInput || !quantityDisplay || !packSizeDisplay) return;
+
+        var packSize = parseInt(packSizeDisplay.value) || 0;
+        var packages = parseInt(packagesInput.value) || 0;
+        var extra = parseFloat(extraInput.value) || 0;
+        quantityDisplay.value = ((packages * packSize) + extra).toFixed(0);
+    }
+
+    function initRow(row) {
+        updatePackSize(row);
+        updatePackagesDisabled(row);
+        updateQuantity(row);
+
+        var packagesInput = row.querySelector('.packages-input');
+        var extraInput = row.querySelector('.extra-input');
+        var productSelect = row.querySelector('.product-select');
+
+        if (packagesInput) packagesInput.addEventListener('input', function () { updateQuantity(row); });
+        if (extraInput) extraInput.addEventListener('input', function () { updateQuantity(row); });
+        if (productSelect) productSelect.addEventListener('change', function () {
+            updatePackSize(row);
+            updatePackagesDisabled(row);
+            updateQuantity(row);
+        });
+    }
+
+    function buildProductOptions(selectedId) {
+        var opts = '<option value="">Select</option>';
+        products.forEach(function (p) {
+            var selected = (selectedId && selectedId == p.id) ? ' selected' : '';
+            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '"' + selected + '>' + p.name + '</option>';
+        });
+        return opts;
+    }
+
+    function buildNewRowHtml(idx, selectedId, mode) {
+        var rowMode = mode || 'create';
+        var actionsHtml = rowMode === 'create'
+            ? '<td><div class="d-flex"><button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button><button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button></div></td>'
+            : '<td><button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button></td>';
+
+        return '' +
+            '<td style="width: 180px;">' +
+                '<select name="items[' + idx + '][product_id]" class="form-control product-select" required>' +
+                    buildProductOptions(selectedId) +
+                '</select>' +
+            '</td>' +
+            '<td><input type="number" name="items[' + idx + '][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required></td>' +
+            '<td><input type="number" name="items[' + idx + '][extra_units]" class="form-control extra-input" value="0" min="0" step="1"></td>' +
+            '<td><input type="text" class="form-control pack-size-display" value="0" readonly></td>' +
+            '<td><input type="text" name="items[' + idx + '][quantity]" class="form-control quantity-display" readonly></td>' +
+            actionsHtml;
+    }
+
+    document.addEventListener('click', function (e) {
+        var addBtn = e.target.closest('.add-row');
+        if (addBtn) {
+            e.preventDefault();
+            var tbody = addBtn.closest('tbody');
+            var rowCount = tbody.querySelectorAll('tr').length;
+            var newRow = document.createElement('tr');
+            newRow.innerHTML = buildNewRowHtml(rowCount, null, 'create');
+            tbody.appendChild(newRow);
+            initRow(newRow);
+        }
+
+        var removeBtn = e.target.closest('.remove-tr');
+        if (removeBtn) {
+            e.preventDefault();
+            var row = removeBtn.closest('tr');
+            var tbody = row.closest('tbody');
+            if (tbody.querySelectorAll('tr').length > 1) row.remove();
+            else alert('You must have at least one product.');
+        }
+
+        var addEditBtn = e.target.closest('.add-edit-row');
+        if (addEditBtn) {
+            e.preventDefault();
+            var targetId = addEditBtn.dataset.target;
+            var container = document.getElementById(targetId);
+            if (!container) return;
+            var idx = parseInt(addEditBtn.dataset.index) || container.querySelectorAll('tr').length;
+            var newRow = document.createElement('tr');
+            newRow.innerHTML = buildNewRowHtml(idx, null, 'edit');
+            container.appendChild(newRow);
+            initRow(newRow);
+            addEditBtn.dataset.index = idx + 1;
+        }
+
+        var removeEditBtn = e.target.closest('.remove-edit-tr');
+        if (removeEditBtn) {
+            e.preventDefault();
+            var row = removeEditBtn.closest('tr');
+            var tbody = row.closest('tbody');
+            if (tbody.querySelectorAll('tr').length > 1) row.remove();
+            else alert('You must have at least one product.');
+        }
+    });
+
+    document.querySelectorAll('#add_items tr').forEach(initRow);
+
+    $('#transfersTable').DataTable({
+        processing: true, serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: { url: '{{ route('inventory-transfers.data') }}', type: 'GET' },
+        columns: [
+            { data: 'no',         orderable: false, searchable: false },
+            { data: 'reference',  orderable: false },
+            { data: 'date',       name: 'requested_date' },
+            { data: 'from',       orderable: false },
+            { data: 'to',         orderable: false },
+            { data: 'items',      orderable: false, searchable: false },
+            { data: 'status',     name: 'status' },
+            { data: 'actions',    orderable: false, searchable: false }
+        ],
+        order: [[0, 'desc']],
+        pageLength: 25,
+        drawCallback: function () {
+            $('#totalTransfers').text(this.api().page.info().recordsTotal);
+        }
+    });
+
+    $(document).on('click', '.view-transfer-btn', function () {
+        var id = $(this).data('id');
+        $.get('/inventory-transfers/' + id + '/view', function (html) {
+            $('#viewTransferBody').html(html);
+            $('#viewTransferModal').modal('show');
+        });
+    });
+
+    $(document).on('click', '.edit-transfer-btn', function () {
+        var id = $(this).data('id');
+        $.get('/inventory-transfers/' + id + '/edit-form', function (html) {
+            $('#editTransferBody').html(html);
+            $('#editTransferModal').modal('show');
+            $('#editTransferBody').find('tbody[id^="edit_items_"] tr').each(function () {
+                initRow(this);
+            });
+        });
+    });
+
+    $(document).on('click', '.reject-transfer-btn', function () {
+        var id = $(this).data('id');
+        $('#rejectTransferForm').attr('action', '/inventory-transfers/' + id + '/reject');
+        $('#rejectTransferModal').modal('show');
+    });
+})();
+</script>
+@endpush

@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ProductSale;
-use App\Models\ProductSaleItem;
+use App\Http\DataTables\DataTableQuery;
+use App\Http\DataTables\DataTableRequest;
+use App\Http\DataTables\DataTableResponse;
+use App\Models\InventoryTransaction;
 use App\Models\Location;
 use App\Models\Product;
+use App\Models\ProductSale;
+use App\Models\ProductSaleItem;
 use App\Models\StockBatch;
-use App\Models\InventoryTransaction;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,25 +22,133 @@ class ProductSaleController extends Controller
     public function index(): View
     {
         $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        if ($user->role && $user->role->role_name === 'Super Admin') {
-            $sales = ProductSale::with(['location', 'user', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+        if ($isSuperAdmin) {
             $locations = Location::where('type', 'sale')->orderBy('id', 'desc')->get();
-            $isSuperAdmin = true;
         } else {
-            $sales = ProductSale::where('location_id', $user->location_id)
-                ->with(['location', 'user', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
             $locations = Location::where('id', $user->location_id)->where('type', 'sale')->get();
-            $isSuperAdmin = false;
         }
 
         $products = Product::orderBy('name', 'asc')->get();
 
-        return view('pages.sales.index', compact('sales', 'locations', 'products', 'isSuperAdmin'));
+        return view('pages.sales.index', compact('locations', 'products', 'isSuperAdmin'));
+    }
+
+    public function getData(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        $req = new DataTableRequest($request, [
+            0 => 'id',
+            1 => 'id',
+            2 => 'created_at',
+            3 => 'location_id',
+            4 => 'invoice_no',
+            5 => 'id',
+            6 => 'total_amount',
+            7 => 'status',
+        ], 'created_at');
+
+        $base = ProductSale::query()
+            ->with(['location', 'user', 'items.product'])
+            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+
+        $dtq = (new DataTableQuery($base, $req))
+            ->searchable(['invoice_no', 'notes'])
+            ->searchRelations([
+                'location' => ['name'],
+                'user'     => ['name'],
+            ]);
+
+        [$total, $filtered, $rows] = $dtq->paginate();
+
+        $statusClasses = [
+            'pending'   => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ];
+
+        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($sale, $no) use ($statusClasses) {
+            if ($sale->items->count() > 0) {
+                $parts = [];
+                foreach ($sale->items as $item) {
+                    $name  = e(optional($item->product)->name ?? 'N/A');
+                    $qty   = e($item->quantity);
+                    $price = number_format($item->unit_price, 2);
+                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">' . $qty . ' × ' . $price . '</span></div>';
+                }
+                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 200px;">' . implode('', $parts) . '</div>';
+            } else {
+                $itemsSummary = '<span class="text-muted">No items</span>';
+            }
+
+            $statusClass = $statusClasses[$sale->status] ?? 'secondary';
+            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($sale->status)) . '</span>';
+
+            $actions = '';
+
+            if ($sale->status === 'pending') {
+                $actions .= '<button type="button" class="btn btn-info btn-sm edit-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-edit"></i></button>';
+                $actions .= ' <a href="' . route('sales.complete', $sale->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this sale? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
+                $actions .= ' <form action="' . route('sales.destroy', $sale->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this sale?\');">'
+                          . csrf_field() . method_field('DELETE')
+                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+            }
+
+            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-eye"></i></button>';
+
+            return [
+                'no'         => $no,
+                'reference'  => '#' . $sale->id,
+                'date'       => $sale->created_at ? $sale->created_at->toFormattedDateString() : 'N/A',
+                'location'   => e(optional($sale->location)->name ?? 'N/A'),
+                'invoice'    => e($sale->invoice_no ?? 'N/A'),
+                'items'      => $itemsSummary,
+                'total'      => number_format($sale->total_amount, 2),
+                'status'     => $statusBadge,
+                'actions'    => $actions,
+            ];
+        });
+    }
+
+    public function view($id): View
+    {
+        $sale = ProductSale::with(['location', 'user', 'items.product'])->findOrFail($id);
+
+        $statusClasses = [
+            'pending'   => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ];
+        $statusClass = $statusClasses[$sale->status] ?? 'secondary';
+
+        return view('pages.sales.partials.view', compact('sale', 'statusClass'));
+    }
+
+    public function editForm($id): View
+    {
+        $sale = ProductSale::with('items.product')->findOrFail($id);
+
+        if ($sale->status !== 'pending') {
+            abort(403, 'Only pending sales can be edited.');
+        }
+
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        if ($isSuperAdmin) {
+            $locations = Location::where('type', 'sale')->orderBy('id', 'desc')->get();
+        } else {
+            $locations = Location::where('id', $user->location_id)->where('type', 'sale')->get();
+        }
+
+        $products = Product::orderBy('name', 'asc')->get();
+
+        return view('pages.sales.partials.edit-form', compact(
+            'sale', 'locations', 'products', 'isSuperAdmin'
+        ));
     }
 
     public function store(Request $request)
@@ -79,6 +191,7 @@ class ProductSaleController extends Controller
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return back()->withErrors($errors)->withInput();
             }
 
@@ -181,6 +294,7 @@ class ProductSaleController extends Controller
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return back()->withErrors($errors)->withInput();
             }
 
@@ -293,9 +407,7 @@ class ProductSaleController extends Controller
                 return back()->withErrors($errors);
             }
 
-            $sale->update([
-                'status' => 'completed',
-            ]);
+            $sale->update(['status' => 'completed']);
 
             DB::commit();
 

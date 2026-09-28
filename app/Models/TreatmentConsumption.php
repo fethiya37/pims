@@ -38,4 +38,9 @@ class TreatmentConsumption extends Model
     {
         return $this->hasMany(TreatmentConsumptionItem::class);
     }
+
+    public function lineItems()
+{
+    return $this->hasMany(TreatmentConsumptionItem::class);
+}
 }

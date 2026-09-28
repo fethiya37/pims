@@ -13,7 +13,7 @@
     <div class="card">
         <div class="card-body">
             <div class="table-responsive">
-                <table id="example1" class="table table-bordered table-striped">
+                <table id="adjustmentsTable" class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th>No.</th>
@@ -28,28 +28,7 @@
                             <th>Date</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach ($adjustments as $adjustment)
-                            <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>{{ $adjustment->location->name }}</td>
-                                <td>{{ $adjustment->product->name }}</td>
-                                <td>
-                                    @if ($adjustment->adjustment_type === 'IN')
-                                        <span class="badge badge-success">Stock In</span>
-                                    @else
-                                        <span class="badge badge-danger">Stock Out</span>
-                                    @endif
-                                </td>
-                                <td>{{ $adjustment->lot_number ?? 'N/A' }}</td>
-                                <td>{{ $adjustment->quantity }}</td>
-                                <td>{{ $adjustment->expiry_date ?? 'N/A' }}</td>
-                                <td>{{ $adjustment->reason ?? '-' }}</td>
-                                <td>{{ $adjustment->user->name ?? '-' }}</td>
-                                <td>{{ $adjustment->created_at->format('d M Y H:i') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -169,77 +148,99 @@
         </div>
     </div>
 </div>
-
-<script>
-    (function() {
-        var packSize = 0;
-        var packagingType = 'pack';
-
-        function getProductPackSize(productId) {
-            var select = document.querySelector('select[name="product_id"]');
-            var option = select.querySelector('option[value="' + productId + '"]');
-            return option ? parseInt(option.dataset.packSize) || 0 : 0;
-        }
-
-        function getProductPackagingType(productId) {
-            var select = document.querySelector('select[name="product_id"]');
-            var option = select.querySelector('option[value="' + productId + '"]');
-            return option ? option.dataset.packagingType || 'pack' : 'pack';
-        }
-
-        function updatePackSize() {
-            var select = document.querySelector('select[name="product_id"]');
-            var display = document.querySelector('.pack-size-display');
-            if (!select || !display) return;
-            var productId = select.value;
-            packSize = getProductPackSize(productId);
-            packagingType = getProductPackagingType(productId);
-            display.value = packSize;
-        }
-
-        function updatePackagesDisabled() {
-            var packagesInput = document.querySelector('.packages-input');
-            if (!packagesInput) return;
-            if (packagingType === 'unit') {
-                packagesInput.readOnly = true;
-                packagesInput.value = 0;
-            } else {
-                packagesInput.readOnly = false;
-            }
-        }
-
-        function updateQuantity() {
-            var packagesInput = document.querySelector('.packages-input');
-            var extraInput = document.querySelector('.extra-input');
-            var quantityDisplay = document.querySelector('.quantity-display');
-            if (!packagesInput || !extraInput || !quantityDisplay) return;
-
-            var packages = parseInt(packagesInput.value) || 0;
-            var extra = parseFloat(extraInput.value) || 0;
-            var total = (packages * packSize) + extra;
-            quantityDisplay.value = total.toFixed(0);
-        }
-
-        function refreshFields() {
-            updatePackSize();
-            updatePackagesDisabled();
-            updateQuantity();
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            var productSelect = document.querySelector('select[name="product_id"]');
-            var packagesInput = document.querySelector('.packages-input');
-            var extraInput = document.querySelector('.extra-input');
-
-            if (productSelect) {
-                productSelect.addEventListener('change', refreshFields);
-                // Initial
-                refreshFields();
-            }
-
-            if (packagesInput) packagesInput.addEventListener('input', updateQuantity);
-            if (extraInput) extraInput.addEventListener('input', updateQuantity);
-        });
-    })();
-</script>
 @endsection
+
+@push('scripts')
+<script>
+$(function () {
+    // Server-side DataTable
+    $('#adjustmentsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: { url: '{{ route('inventory-adjustments.data') }}', type: 'GET' },
+        columns: [
+            { data: 'no',       orderable: false, searchable: false },
+            { data: 'location', orderable: false },
+            { data: 'product' },
+            { data: 'type',     orderable: false },
+            { data: 'lot',      orderable: false },
+            { data: 'quantity', orderable: false },
+            { data: 'expiry',   orderable: false },
+            { data: 'reason',   orderable: false },
+            { data: 'user',     orderable: false },
+            { data: 'date',     name: 'created_at' }
+        ],
+        order: [[9, 'desc']],
+        pageLength: 25
+    });
+
+    // Item row quantity logic inside the modal
+    var packSize = 0;
+    var packagingType = 'pack';
+
+    function getProductPackSize(productId) {
+        var select = document.querySelector('select[name="product_id"]');
+        var option = select.querySelector('option[value="' + productId + '"]');
+        return option ? parseInt(option.dataset.packSize) || 0 : 0;
+    }
+
+    function getProductPackagingType(productId) {
+        var select = document.querySelector('select[name="product_id"]');
+        var option = select.querySelector('option[value="' + productId + '"]');
+        return option ? option.dataset.packagingType || 'pack' : 'pack';
+    }
+
+    function updatePackSize() {
+        var select = document.querySelector('select[name="product_id"]');
+        var display = document.querySelector('.pack-size-display');
+        if (!select || !display) return;
+        packSize = getProductPackSize(select.value);
+        packagingType = getProductPackagingType(select.value);
+        display.value = packSize;
+    }
+
+    function updatePackagesDisabled() {
+        var packagesInput = document.querySelector('.packages-input');
+        if (!packagesInput) return;
+        if (packagingType === 'unit') {
+            packagesInput.readOnly = true;
+            packagesInput.value = 0;
+        } else {
+            packagesInput.readOnly = false;
+        }
+    }
+
+    function updateQuantity() {
+        var packagesInput = document.querySelector('.packages-input');
+        var extraInput = document.querySelector('.extra-input');
+        var quantityDisplay = document.querySelector('.quantity-display');
+        if (!packagesInput || !extraInput || !quantityDisplay) return;
+
+        var packages = parseInt(packagesInput.value) || 0;
+        var extra = parseFloat(extraInput.value) || 0;
+        quantityDisplay.value = ((packages * packSize) + extra).toFixed(0);
+    }
+
+    function refreshFields() {
+        updatePackSize();
+        updatePackagesDisabled();
+        updateQuantity();
+    }
+
+    var productSelect = document.querySelector('select[name="product_id"]');
+    var packagesInput = document.querySelector('.packages-input');
+    var extraInput = document.querySelector('.extra-input');
+
+    if (productSelect) {
+        productSelect.addEventListener('change', refreshFields);
+        refreshFields();
+    }
+    if (packagesInput) packagesInput.addEventListener('input', updateQuantity);
+    if (extraInput) extraInput.addEventListener('input', updateQuantity);
+});
+</script>
+@endpush

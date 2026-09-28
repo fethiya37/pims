@@ -57,6 +57,7 @@
                 <table id="transfer_table" class="table table-bordered table-striped">
                     <thead>
                         <tr>
+                            <th>No</th>
                             <th>Date</th>
                             <th>Reference</th>
                             <th>Product</th>
@@ -64,29 +65,11 @@
                             <th>From</th>
                             <th>To</th>
                             <th>Quantity (units)</th>
-                            @if($transfers->contains(fn($t) => $t->packaging_type === 'pack'))
-                            <th>Quantity (pack)</th>
-                            @endif
+                            <th class="pack-col">Quantity (pack)</th>
                             <th>User</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach ($transfers as $t)
-                            <tr>
-                                <td>{{ $t->created_at->format('Y-m-d H:i') }}</td>
-                                <td>{{ $t->reference ?? 'N/A' }}</td>
-                                <td>{{ $t->product->name ?? 'N/A' }}</td>
-                                <td>{{ $t->lot_number ?? 'N/A' }}</td>
-                                <td>{{ $t->fromLocation->name ?? 'N/A' }}</td>
-                                <td>{{ $t->toLocation->name ?? 'N/A' }}</td>
-                                <td>{{ $t->quantity_units }}</td>
-                                @if($transfers->contains(fn($item) => $item->packaging_type === 'pack'))
-                                <td>{{ $t->packaging_type === 'pack' ? $t->quantity_pack_display : '-' }}</td>
-                                @endif
-                                <td>{{ $t->user->name ?? 'N/A' }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -96,17 +79,46 @@
 
 @push('scripts')
 <script>
-$(function() {
+$(function () {
     $('.select2').select2();
-    const dt = $('#transfer_table').DataTable({
-        responsive: true,
-        lengthChange: false,
-        autoWidth: false,
-        pageLength: 20,
-        order: [[0, 'desc']],
-        buttons: ["csv","excel","pdf","print"]
+    $('#transfer_table').DataTable({
+        processing: true, serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: {
+            url: '{{ route('reports.inter-location-transfer.data') }}',
+            data: {
+                product_id: '{{ request('product_id') }}',
+                from_location_id: '{{ $fromLocationId }}',
+                to_location_id: '{{ $toLocationId }}',
+                from_date: '{{ $fromDate }}',
+                to_date: '{{ $toDate }}'
+            }
+        },
+        columns: [
+            { data: 'no', orderable: false, searchable: false },
+            { data: 'date' },
+            { data: 'reference' },
+            { data: 'product' },
+            { data: 'lot_number' },
+            { data: 'from', orderable: false },
+            { data: 'to', orderable: false },
+            { data: 'quantity_units' },
+            { data: 'quantity_pack' },
+            { data: 'user', orderable: false }
+        ],
+        order: [[1, 'desc']],
+        pageLength: 25,
+        drawCallback: function () {
+            var any = false;
+            this.api().rows({ search: 'applied' }).every(function () {
+                if (this.data().has_pack) { any = true; return false; }
+            });
+            $('.pack-col').toggle(any);
+        }
     });
-    dt.buttons().container().appendTo('#transfer_table_wrapper .col-md-6:eq(0)');
 });
 </script>
 @endpush

@@ -9,7 +9,7 @@
                     <div class="card-header">
                         <div class="row">
                             <div class="col-8 lg">
-                                <b>Total Product: {{ count($products) }}</b>
+                                <b>Total Product: <span id="totalProducts">—</span></b>
                             </div>
                             <div class="col-4 lg">
                                 <button type="button" class="btn btn-primary pull-right btn-sm" style="float: right;"
@@ -35,7 +35,7 @@
             <div class="card col-md-12">
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table id="example1" class="table table-bordered table-striped table-hover">
+                        <table id="productsTable" class="table table-bordered table-striped table-hover">
                             <thead class="thead-dark">
                                 <tr>
                                     <th>No</th>
@@ -49,209 +49,13 @@
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id='list'>
-                                @if (count($products) > 0)
-                                    @php $no = 0; @endphp
-                                    @foreach ($products as $product)
-                                        @php $no++; @endphp
-                                        <tr>
-                                            <td>{{ $no }}</td>
-                                            <td><span class="badge badge-info">{{ $product->item_code }}</span></td>
-                                            <td>{{ $product->name }}</td>
-                                            <td>{{ optional($product->category)->name ?? '—' }}</td>
-                                            <td>{{ $product->unit ?? '—' }}</td>
-                                            <td>
-                                                @if ($product->packaging_type === 'pack')
-                                                    <span class="badge badge-warning">Pack</span>
-                                                    <small class="d-block">{{ $product->default_pack_size ?? 1 }} × {{ $product->unit }}</small>
-                                                @else
-                                                    <span class="badge badge-secondary">Unit</span>
-                                                @endif
-                                            </td>
-                                            <td>
-                                                @if ($product->status === 'active')
-                                                    <span class="badge badge-success">Active</span>
-                                                @else
-                                                    <span class="badge badge-secondary">Inactive</span>
-                                                @endif
-                                            </td>
-                                            <td>{{ $product->description ?? '—' }}</td>
-                                            <td>
-                                                <button type="button" class="btn btn-primary btn-sm"
-                                                    data-toggle="modal" data-target="#modal-lg-{{ $product->id }}">
-                                                    <i class="fas fa-edit"></i>
-                                                </button>
-                                                <a href="delete-product-{{ $product->id }}"
-                                                    class="btn btn-danger btn-sm"
-                                                    onclick="return confirm('Are you sure you want to delete this product?');">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                                <a href="{{ route('products.opening-quantities', $product->id) }}"
-                                                    class="btn btn-sm btn-success"
-                                                    title="Manage Opening Quantity">
-                                                    <i class="fas fa-warehouse"></i>
-                                                </a>
-                                                <a href="{{ route('products.reorder-settings', $product->id) }}"
-                                                    class="btn btn-sm btn-info"
-                                                    title="Reorder Settings">
-                                                    <i class="fas fa-bell"></i>
-                                                </a>
-                                            </td>
-                                        </tr>
-
-                                        <div class="modal fade" id="modal-lg-{{ $product->id }}">
-                                            <div class="modal-dialog modal-lg">
-                                                <div class="modal-content">
-                                                    <div class="modal-header">
-                                                        <h4 class="modal-title">Edit {{ $product->name }}</h4>
-                                                        <button type="button" class="close" data-dismiss="modal"
-                                                            aria-label="Close">
-                                                            <span aria-hidden="true">&times;</span>
-                                                        </button>
-                                                    </div>
-                                                    <div class="modal-body">
-                                                        <div class="container-fluid">
-                                                            <div class="card card-primary">
-                                                                <div class="card-header">
-                                                                    <h3 class="card-title">Product
-                                                                        <small>Information</small>
-                                                                    </h3>
-                                                                </div>
-                                                                <form action="/edit-product-{{ $product->id }}"
-                                                                    method="POST" id="quickForm">
-                                                                    @csrf
-                                                                    <div class="card-body">
-                                                                        <div class="row">
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Category</label>
-                                                                                    <a data-toggle="modal" data-target="#categoryModal"
-                                                                                        class="btn btn-xs btn-primary" style="float:right">
-                                                                                        <i class="fas fa-plus"></i>
-                                                                                    </a>
-                                                                                    <select name="category_id"
-                                                                                        class="form-control category-dropdown">
-                                                                                        <option value="">Select
-                                                                                            Category</option>
-                                                                                        @foreach ($categories as $category)
-                                                                                            <option
-                                                                                                value="{{ $category->id }}"
-                                                                                                {{ $product->category_id == $category->id ? 'selected' : '' }}>
-                                                                                                {{ $category->name }}
-                                                                                            </option>
-                                                                                        @endforeach
-                                                                                    </select>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Item Code</label>
-                                                                                    <input type="text" name="item_code"
-                                                                                        class="form-control"
-                                                                                        value="{{ $product->item_code }}"
-                                                                                        readonly>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Product Name *</label>
-                                                                                    <input type="text" name="name"
-                                                                                        class="form-control"
-                                                                                        value="{{ $product->name }}"
-                                                                                        required>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div class="row">
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Packaging Type</label>
-                                                                                    <select name="packaging_type" class="form-control packaging-type-select">
-                                                                                        <option value="unit" {{ $product->packaging_type == 'unit' ? 'selected' : '' }}>Unit</option>
-                                                                                        <option value="pack" {{ $product->packaging_type == 'pack' ? 'selected' : '' }}>Pack</option>
-                                                                                    </select>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Pack Size</label>
-                                                                                    <input type="number" name="default_pack_size"
-                                                                                        class="form-control pack-size-input" min="1"
-                                                                                        value="{{ $product->default_pack_size ?? 1 }}">
-                                                                                    <small class="text-muted">Units per pack</small>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Unit (Base UoM)</label>
-                                                                                    <input type="text" name="unit"
-                                                                                        class="form-control"
-                                                                                        value="{{ $product->unit }}"
-                                                                                        placeholder="e.g., piece, mL">
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div class="row">
-                                                                            <div class="col-4">
-                                                                                <div class="form-group">
-                                                                                    <label>Status</label>
-                                                                                    <select name="status"
-                                                                                        class="form-control">
-                                                                                        <option value="active"
-                                                                                            {{ $product->status == 'active' ? 'selected' : '' }}>
-                                                                                            Active
-                                                                                        </option>
-                                                                                        <option value="inactive"
-                                                                                            {{ $product->status == 'inactive' ? 'selected' : '' }}>
-                                                                                            Inactive
-                                                                                        </option>
-                                                                                    </select>
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="col-8">
-                                                                                <div class="form-group">
-                                                                                    <label>Description</label>
-                                                                                    <input type="text" name="description"
-                                                                                        class="form-control"
-                                                                                        value="{{ $product->description }}">
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div class="modal-footer justify-content-between">
-                                                                            <button type="button"
-                                                                                class="btn btn-default"
-                                                                                data-dismiss="modal">
-                                                                                {{ __('messages.close') }}
-                                                                            </button>
-                                                                            <button type="submit"
-                                                                                class="btn btn-primary swalDefaultSuccess"
-                                                                                onclick="return confirm('Are you sure? Save Changes !!!');">
-                                                                                Save Change
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                </form>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    @endforeach
-                                @else
-                                    <tr>
-                                        <td colspan="9" class="text-center">No products found!</td>
-                                    </tr>
-                                @endif
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
+            {{-- New Product modal (unchanged) --}}
             <div class="modal fade" id="modal-lg">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
@@ -359,7 +163,22 @@
                 </div>
             </div>
 
-            <!-- CATEGORY MANAGEMENT MODAL -->
+            {{-- Single shared Edit Product modal (loaded dynamically) --}}
+            <div class="modal fade" id="editProductModal">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Edit Product</h4>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body" id="editProductBody"></div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Category Management modal (unchanged) --}}
             <div class="modal fade" id="categoryModal">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
@@ -413,161 +232,188 @@
 </section>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        function togglePackSize(select) {
-            var modal = select.closest('.modal');
-            if (!modal) return;
-            var packSizeInput = modal.querySelector('.pack-size-input');
-            if (!packSizeInput) return;
-            if (select.value === 'unit') {
-                packSizeInput.value = 1;
-                packSizeInput.readOnly = true;
+$(function () {
+    // 1. Server-side DataTable with export buttons
+    var table = $('#productsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: {
+            url: '{{ route('products.data') }}',
+            type: 'GET'
+        },
+        columns: [
+            { data: 'no',          orderable: false, searchable: false },
+            { data: 'item_code',   name: 'item_code' },
+            { data: 'name',        name: 'name' },
+            { data: 'category',    orderable: false, searchable: false },
+            { data: 'unit',        name: 'unit' },
+            { data: 'packaging',   orderable: false, searchable: false },
+            { data: 'status',      name: 'status' },
+            { data: 'description', orderable: false, searchable: false },
+            { data: 'actions',     orderable: false, searchable: false }
+        ],
+        order: [[1, 'desc']],
+        pageLength: 25,
+        lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+        language: {
+            processing: '<i class="fas fa-spinner fa-spin"></i> Loading...',
+            emptyTable: 'No products found',
+            zeroRecords: 'No matching products found'
+        },
+        drawCallback: function () {
+            $('#totalProducts').text(this.api().page.info().recordsTotal);
+        }
+    });
+
+    // 2. Edit modal load on click
+    $(document).on('click', '.edit-product-btn', function () {
+        var id = $(this).data('id');
+        $.get('/edit-product-form-' + id, function (html) {
+            $('#editProductBody').html(html);
+            $('#editProductModal').modal('show');
+        });
+    });
+
+    // 3. Pack-size toggle inside whichever modal is currently open
+    function togglePackSize(select) {
+        var modal = select.closest('.modal');
+        if (!modal) return;
+        var packSizeInput = modal.querySelector('.pack-size-input');
+        if (!packSizeInput) return;
+        if (select.value === 'unit') {
+            packSizeInput.value = 1;
+            packSizeInput.readOnly = true;
+        } else {
+            packSizeInput.readOnly = false;
+            if (packSizeInput.value < 1) packSizeInput.value = 1;
+        }
+    }
+
+    $(document).on('change', '.packaging-type-select', function () {
+        togglePackSize(this);
+    });
+
+    // 4. Category management
+    function refreshCategoryDropdowns() {
+        var categories = [];
+        document.querySelectorAll('#categoryList .col-md-4').forEach(function (el) {
+            var id = el.dataset.id;
+            var name = el.querySelector('.category-name').textContent.trim();
+            categories.push({ id: id, name: name });
+        });
+        document.querySelectorAll('.category-dropdown').forEach(function (dropdown) {
+            var currentVal = dropdown.value;
+            dropdown.innerHTML = '<option value="">Select Category</option>';
+            categories.forEach(function (cat) {
+                var opt = document.createElement('option');
+                opt.value = cat.id;
+                opt.textContent = cat.name;
+                dropdown.appendChild(opt);
+            });
+            if (currentVal) dropdown.value = currentVal;
+        });
+    }
+
+    document.getElementById('addCategoryBtn').addEventListener('click', function () {
+        var nameInput = document.getElementById('newCategoryName');
+        var name = nameInput.value.trim();
+        if (!name) { alert('Please enter a category name.'); return; }
+
+        fetch('{{ route('add-category') }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({ category_name: name })
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (data.success) {
+                var newCat = data.category;
+                var list = document.getElementById('categoryList');
+                var col = document.createElement('div');
+                col.className = 'col-md-4 mb-2';
+                col.dataset.id = newCat.id;
+                col.innerHTML = '<div class="card shadow-sm"><div class="card-body py-2 d-flex justify-content-between align-items-center"><span class="category-name">' + newCat.name + '</span><div><button class="btn btn-sm btn-outline-primary edit-category-btn" data-id="' + newCat.id + '" data-name="' + newCat.name + '"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger delete-category-btn" data-id="' + newCat.id + '"><i class="fas fa-trash"></i></button></div></div></div>';
+                list.appendChild(col);
+                nameInput.value = '';
+                refreshCategoryDropdowns();
             } else {
-                packSizeInput.readOnly = false;
-                if (packSizeInput.value < 1) {
-                    packSizeInput.value = 1;
-                }
+                alert('Error: ' + (data.message || 'Unknown error'));
             }
-        }
+        })
+        .catch(function (err) { alert('Error adding category: ' + err); });
+    });
 
-        document.querySelectorAll('.packaging-type-select').forEach(function(select) {
-            togglePackSize(select);
-            select.addEventListener('change', function() {
-                togglePackSize(this);
-            });
-        });
+    document.getElementById('newCategoryName').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') document.getElementById('addCategoryBtn').click();
+    });
 
-        function refreshCategoryDropdowns() {
-            var categories = [];
-            document.querySelectorAll('#categoryList .col-md-4').forEach(function(el) {
-                var id = el.dataset.id;
-                var name = el.querySelector('.category-name').textContent.trim();
-                categories.push({id: id, name: name});
-            });
-            document.querySelectorAll('.category-dropdown').forEach(function(dropdown) {
-                var currentVal = dropdown.value;
-                dropdown.innerHTML = '<option value="">Select Category</option>';
-                categories.forEach(function(cat) {
-                    var opt = document.createElement('option');
-                    opt.value = cat.id;
-                    opt.textContent = cat.name;
-                    dropdown.appendChild(opt);
-                });
-                if (currentVal) {
-                    dropdown.value = currentVal;
-                }
-            });
-        }
-
-        document.getElementById('addCategoryBtn').addEventListener('click', function() {
-            var nameInput = document.getElementById('newCategoryName');
-            var name = nameInput.value.trim();
-            if (!name) {
-                alert('Please enter a category name.');
-                return;
-            }
-            fetch('{{ route('add-category') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({ category_name: name })
-            })
-            .then(function(response) { return response.json(); })
-            .then(function(data) {
-                if (data.success) {
-                    var newCat = data.category;
-                    var list = document.getElementById('categoryList');
-                    var col = document.createElement('div');
-                    col.className = 'col-md-4 mb-2';
-                    col.dataset.id = newCat.id;
-                    col.innerHTML = '<div class="card shadow-sm"><div class="card-body py-2 d-flex justify-content-between align-items-center"><span class="category-name">' + newCat.name + '</span><div><button class="btn btn-sm btn-outline-primary edit-category-btn" data-id="' + newCat.id + '" data-name="' + newCat.name + '"><i class="fas fa-edit"></i></button><button class="btn btn-sm btn-outline-danger delete-category-btn" data-id="' + newCat.id + '"><i class="fas fa-trash"></i></button></div></div></div>';
-                    list.appendChild(col);
-                    nameInput.value = '';
-                    refreshCategoryDropdowns();
-                } else {
-                    alert('Error: ' + (data.message || 'Unknown error'));
-                }
-            })
-            .catch(function(err) {
-                alert('Error adding category: ' + err);
-                console.error(err);
-            });
-        });
-
-        document.getElementById('newCategoryName').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.getElementById('addCategoryBtn').click();
-            }
-        });
-
-        document.addEventListener('click', function(e) {
-            var btn = e.target.closest('.edit-category-btn');
-            if (btn) {
-                var id = btn.dataset.id;
-                var currentName = btn.dataset.name;
-                var newName = prompt('Edit category name:', currentName);
-                if (newName !== null && newName.trim() !== '') {
-                    fetch('{{ route('edit-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Accept': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                        },
-                        body: JSON.stringify({ category_name: newName.trim() })
-                    })
-                    .then(function(response) { return response.json(); })
-                    .then(function(data) {
-                        if (data.success) {
-                            var card = btn.closest('.col-md-4');
-                            card.querySelector('.category-name').textContent = newName.trim();
-                            btn.dataset.name = newName.trim();
-                            refreshCategoryDropdowns();
-                        } else {
-                            alert('Error: ' + (data.message || 'Unknown error'));
-                        }
-                    })
-                    .catch(function(err) {
-                        alert('Error updating category: ' + err);
-                        console.error(err);
-                    });
-                }
-            }
-        });
-
-        document.addEventListener('click', function(e) {
-            var btn = e.target.closest('.delete-category-btn');
-            if (btn) {
-                if (!confirm('Delete this category?')) return;
-                var id = btn.dataset.id;
-                fetch('{{ route('delete-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
-                    method: 'GET',
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.edit-category-btn');
+        if (btn) {
+            var id = btn.dataset.id;
+            var currentName = btn.dataset.name;
+            var newName = prompt('Edit category name:', currentName);
+            if (newName !== null && newName.trim() !== '') {
+                fetch('{{ route('edit-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
+                    method: 'POST',
                     headers: {
+                        'Content-Type': 'application/json',
                         'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                    }
+                    },
+                    body: JSON.stringify({ category_name: newName.trim() })
                 })
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
                     if (data.success) {
                         var card = btn.closest('.col-md-4');
-                        if (card) card.remove();
+                        card.querySelector('.category-name').textContent = newName.trim();
+                        btn.dataset.name = newName.trim();
                         refreshCategoryDropdowns();
                     } else {
                         alert('Error: ' + (data.message || 'Unknown error'));
                     }
                 })
-                .catch(function(err) {
-                    alert('Error deleting category: ' + err);
-                    console.error(err);
-                });
+                .catch(function (err) { alert('Error updating category: ' + err); });
             }
-        });
-
-        refreshCategoryDropdowns();
+        }
     });
+
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.delete-category-btn');
+        if (btn) {
+            if (!confirm('Delete this category?')) return;
+            var id = btn.dataset.id;
+            fetch('{{ route('delete-category', ['id' => '__ID__']) }}'.replace('__ID__', id), {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    var card = btn.closest('.col-md-4');
+                    if (card) card.remove();
+                    refreshCategoryDropdowns();
+                } else {
+                    alert('Error: ' + (data.message || 'Unknown error'));
+                }
+            })
+            .catch(function (err) { alert('Error deleting category: ' + err); });
+        }
+    });
+
+    refreshCategoryDropdowns();
+});
 </script>
 @endsection

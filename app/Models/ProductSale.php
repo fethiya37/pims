@@ -37,4 +37,10 @@ class ProductSale extends Model
     {
         return $this->hasMany(ProductSaleItem::class);
     }
+
+    public function lineItems()
+{
+    return $this->hasMany(ProductSaleItem::class);
+}
+    
 }

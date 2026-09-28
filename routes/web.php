@@ -35,7 +35,8 @@ Route::controller(LocationController::class)
 Route::controller(ProductController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_products'])->group(function () {
         Route::get('/products', 'index')->name('products.index');
-        Route::get('/products/data', 'getProductData')->name('products.data'); 
+        Route::get('/products/data', 'getProductData')->name('products.data');
+        Route::get('/edit-product-form-{id}', 'editProductForm');
         Route::post('/add-product', 'addProduct');
         Route::post('/edit-product-{id}', 'editProduct');
         Route::get('delete-product-{id}', 'deleteProduct');
@@ -49,6 +50,9 @@ Route::controller(ProductController::class)
 Route::controller(GoodsReceiptController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_goods_receipt'])->group(function () {
         Route::get('/goods-receipts', 'index')->name('goods-receipts.index');
+        Route::get('/goods-receipts/data', 'getData')->name('goods-receipts.data');
+        Route::get('/goods-receipts/{id}/view', 'view')->name('goods-receipts.view');
+        Route::get('/goods-receipts/{id}/edit-form', 'editForm')->name('goods-receipts.edit-form');
         Route::post('/goods-receipts', 'store')->name('goods-receipts.store');
         Route::put('/goods-receipts/{id}', 'update')->name('goods-receipts.update');
         Route::get('/goods-receipts/{id}/receive', 'receive')->name('goods-receipts.receive');
@@ -66,6 +70,9 @@ Route::controller(SupplierController::class)
 Route::controller(InventoryTransferController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_inventory_transfer'])->group(function () {
         Route::get('/inventory-transfers', 'index')->name('inventory-transfers.index');
+        Route::get('/inventory-transfers/data', 'getData')->name('inventory-transfers.data');
+        Route::get('/inventory-transfers/{id}/view', 'view')->name('inventory-transfers.view');
+        Route::get('/inventory-transfers/{id}/edit-form', 'editForm')->name('inventory-transfers.edit-form');
         Route::post('/inventory-transfers', 'store')->name('inventory-transfers.store');
         Route::put('/inventory-transfers/{id}', 'update')->name('inventory-transfers.update');
         Route::get('/inventory-transfers/{id}/approve', 'approve')->name('inventory-transfers.approve');
@@ -78,6 +85,7 @@ Route::controller(InventoryTransferController::class)
 Route::controller(InventoryAdjustmentController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_inventory_adjustment'])->group(function () {
         Route::get('/inventory-adjustments', 'index')->name('inventory-adjustments.index');
+        Route::get('/inventory-adjustments/data', 'getData')->name('inventory-adjustments.data');
         Route::post('/inventory-adjustments', 'store')->name('inventory-adjustments.store');
     });
 
@@ -100,6 +108,9 @@ Route::controller(PatientController::class)
 Route::controller(TreatmentConsumptionController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_treatment_consumption'])->group(function () {
         Route::get('/treatments', 'index')->name('treatments.index');
+        Route::get('/treatments/data', 'getData')->name('treatments.data');
+        Route::get('/treatments/{id}/view', 'view')->name('treatments.view');
+        Route::get('/treatments/{id}/edit-form', 'editForm')->name('treatments.edit-form');
         Route::post('/treatments', 'store')->name('treatments.store');
         Route::put('/treatments/{id}', 'update')->name('treatments.update');
         Route::get('/treatments/{id}/complete', 'complete')->name('treatments.complete');
@@ -109,12 +120,16 @@ Route::controller(TreatmentConsumptionController::class)
 Route::controller(ProductSaleController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_product_sales'])->group(function () {
         Route::get('/sales', 'index')->name('sales.index');
+        Route::get('/sales/data', 'getData')->name('sales.data');
+        Route::get('/sales/{id}/view', 'view')->name('sales.view');
+        Route::get('/sales/{id}/edit-form', 'editForm')->name('sales.edit-form');
         Route::post('/sales', 'store')->name('sales.store');
         Route::put('/sales/{id}', 'update')->name('sales.update');
         Route::get('/sales/{id}/complete', 'complete')->name('sales.complete');
         Route::delete('/sales/{id}', 'destroy')->name('sales.destroy');
     });
 
+    
 Route::controller(UserController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_user'])->group(function () {
         Route::get('/users', 'index');
@@ -139,13 +154,29 @@ Route::controller(ReportController::class)
         Route::get('/stock-balance/overall', 'stockBalanceOverall')->name('reports.stock-balance.overall');
         Route::get('/stock-balance/location', 'stockBalanceLocation')->name('reports.stock-balance.location');
         Route::get('/stock-balance/batch', 'stockBalanceBatch')->name('reports.stock-balance.batch');
+        Route::get('/stock-balance/data', 'getStockBalanceData')->name('reports.stock-balance.data');
+
         Route::get('/inter-location-transfer', 'interLocationTransfer')->name('reports.inter-location-transfer');
+        Route::get('/inter-location-transfer/data', 'getInterTransferData')->name('reports.inter-location-transfer.data');
+
         Route::get('/treatment-report', 'treatmentConsumption')->name('reports.treatment-consumption');
+        Route::get('/treatment-report/data', 'getTreatmentData')->name('reports.treatment-consumption.data');
+
         Route::get('/sales-report', 'salesReport')->name('reports.sales-report');
+        Route::get('/sales-report/data', 'getSalesReportData')->name('reports.sales-report.data');
+        Route::get('/sales-report/top-data', 'getTopProductsData')->name('reports.sales-report.top-data');
+
         Route::get('/transaction-report', 'transactionReport')->name('reports.transaction');
+        Route::get('/transaction-report/data', 'getTransactionData')->name('reports.transaction.data');
+
         Route::get('/low-stock', 'lowStockReport')->name('reports.low-stock');
+        Route::get('/low-stock/data', 'getLowStockData')->name('reports.low-stock.data');
+
         Route::get('/expiry-report', 'expiryReport')->name('reports.expiry');
+        Route::get('/expiry-report/data', 'getExpiryData')->name('reports.expiry.data');
+
         Route::get('/zero-stock-report', 'zeroStockReport')->name('reports.zero-stock');
+        Route::get('/zero-stock-report/data', 'getZeroStockData')->name('reports.zero-stock.data');
     });
 
 Route::prefix('notifications')->name('notifications.')->middleware('auth')->group(function () {

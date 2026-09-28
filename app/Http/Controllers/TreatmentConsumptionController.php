@@ -2,13 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Patient;
-use App\Models\TreatmentConsumption;
-use App\Models\TreatmentConsumptionItem;
+use App\Http\DataTables\DataTableQuery;
+use App\Http\DataTables\DataTableRequest;
+use App\Http\DataTables\DataTableResponse;
+use App\Models\InventoryTransaction;
 use App\Models\Location;
+use App\Models\Patient;
 use App\Models\Product;
 use App\Models\StockBatch;
-use App\Models\InventoryTransaction;
+use App\Models\TreatmentConsumption;
+use App\Models\TreatmentConsumptionItem;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,29 +24,138 @@ class TreatmentConsumptionController extends Controller
     public function index(): View
     {
         $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        if ($user->role && $user->role->role_name === 'Super Admin') {
-            $consumptions = TreatmentConsumption::with(['patient', 'location', 'doctor', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+        if ($isSuperAdmin) {
             $locations = Location::where('type', 'point_of_use')->orderBy('id', 'desc')->get();
-            $isSuperAdmin = true;
         } else {
-            $consumptions = TreatmentConsumption::where('location_id', $user->location_id)
-                ->with(['patient', 'location', 'doctor', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
             $locations = Location::where('id', $user->location_id)->where('type', 'point_of_use')->get();
-            $isSuperAdmin = false;
         }
 
         $patients = Patient::all();
         $products = Product::orderBy('name', 'asc')->get();
-        $users = \App\Models\User::whereHas('role', function ($query) {
+        $users = User::whereHas('role', function ($query) {
             $query->where('role_name', 'like', '%doctor%');
         })->get();
 
-        return view('pages.treatments.index', compact('consumptions', 'locations', 'patients', 'products', 'users', 'isSuperAdmin'));
+        return view('pages.treatments.index', compact('locations', 'patients', 'products', 'users', 'isSuperAdmin'));
+    }
+
+    public function getData(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        $req = new DataTableRequest($request, [
+            0 => 'id',
+            1 => 'id',
+            2 => 'created_at',
+            3 => 'patient_id',
+            4 => 'location_id',
+            5 => 'id',
+            6 => 'status',
+        ], 'created_at');
+
+        $base = TreatmentConsumption::query()
+            ->with(['patient', 'location', 'doctor', 'items.product'])
+            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+
+        $dtq = (new DataTableQuery($base, $req))
+            ->searchable(['diagnosis', 'notes'])
+            ->searchRelations([
+                'patient'  => ['full_name'],
+                'location' => ['name'],
+                'doctor'   => ['name'],
+            ]);
+
+        [$total, $filtered, $rows] = $dtq->paginate();
+
+        $statusClasses = [
+            'draft'     => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ];
+
+        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($consumption, $no) use ($statusClasses) {
+            if ($consumption->items->count() > 0) {
+                $parts = [];
+                foreach ($consumption->items as $item) {
+                    $name = e(optional($item->product)->name ?? 'N/A');
+                    $qty  = e($item->quantity);
+                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
+                }
+                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 180px;">' . implode('', $parts) . '</div>';
+            } else {
+                $itemsSummary = '<span class="text-muted">No items</span>';
+            }
+
+            $statusClass = $statusClasses[$consumption->status] ?? 'secondary';
+            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($consumption->status)) . '</span>';
+
+            $actions = '';
+
+            if ($consumption->status === 'draft') {
+                $actions .= '<button type="button" class="btn btn-info btn-sm edit-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-edit"></i></button>';
+                $actions .= ' <a href="' . route('treatments.complete', $consumption->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this treatment? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
+                $actions .= ' <form action="' . route('treatments.destroy', $consumption->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this treatment?\');">'
+                          . csrf_field() . method_field('DELETE')
+                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+            }
+
+            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-eye"></i></button>';
+
+            return [
+                'no'        => $no,
+                'reference' => '#' . $consumption->id,
+                'date'      => $consumption->created_at ? $consumption->created_at->toFormattedDateString() : 'N/A',
+                'patient'   => e(optional($consumption->patient)->full_name ?? 'N/A'),
+                'location'  => e(optional($consumption->location)->name ?? 'N/A'),
+                'items'     => $itemsSummary,
+                'status'    => $statusBadge,
+                'actions'   => $actions,
+            ];
+        });
+    }
+
+    public function view($id): View
+    {
+        $consumption = TreatmentConsumption::with([
+            'patient', 'location', 'doctor', 'items.product',
+        ])->findOrFail($id);
+
+        $statusClasses = [
+            'draft'     => 'warning',
+            'completed' => 'success',
+            'cancelled' => 'danger',
+        ];
+        $statusClass = $statusClasses[$consumption->status] ?? 'secondary';
+
+        return view('pages.treatments.partials.view', compact('consumption', 'statusClass'));
+    }
+
+    public function editForm($id): View
+    {
+        $consumption = TreatmentConsumption::with('items.product')->findOrFail($id);
+
+        if ($consumption->status !== 'draft') {
+            abort(403, 'Only draft treatments can be edited.');
+        }
+
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        if ($isSuperAdmin) {
+            $locations = Location::where('type', 'point_of_use')->orderBy('id', 'desc')->get();
+        } else {
+            $locations = Location::where('id', $user->location_id)->where('type', 'point_of_use')->get();
+        }
+
+        $patients = Patient::all();
+        $products = Product::orderBy('name', 'asc')->get();
+
+        return view('pages.treatments.partials.edit-form', compact(
+            'consumption', 'locations', 'patients', 'products', 'isSuperAdmin'
+        ));
     }
 
     public function store(Request $request)
@@ -83,6 +197,7 @@ class TreatmentConsumptionController extends Controller
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return back()->withErrors($errors)->withInput();
             }
 
@@ -165,6 +280,7 @@ class TreatmentConsumptionController extends Controller
             }
 
             if (!empty($errors)) {
+                DB::rollBack();
                 return back()->withErrors($errors)->withInput();
             }
 
@@ -258,9 +374,7 @@ class TreatmentConsumptionController extends Controller
                 return back()->withErrors($errors);
             }
 
-            $consumption->update([
-                'status' => 'completed',
-            ]);
+            $consumption->update(['status' => 'completed']);
 
             DB::commit();
 

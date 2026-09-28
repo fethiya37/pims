@@ -9,71 +9,24 @@
                     <i class="fas fa-exclamation-triangle"></i> Zero Stock Report
                     <small class="text-muted d-block">Products with no stock records</small>
                 </h3>
-                <div class="card-tools">
-                    <span class="badge badge-danger">{{ $totalZeroStock }}</span>
-                    <span class="text-muted">no stock records</span>
-                </div>
             </div>
-
             <div class="card-body">
-                @if ($zeroStockItems->isEmpty())
-                    <div class="alert alert-success">
-                        <i class="fas fa-check-circle"></i> All products have stock records.
-                    </div>
-                @else
-                    <div class="table-responsive">
-                        <table id="zero_stock_table" class="table table-bordered table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Product Code</th>
-                                    <th>Product Name</th>
-                                    <th>Category</th>
-                                    <th>Current Stock</th>
-                                    <th>Packaging Type</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($zeroStockItems as $index => $item)
-                                    <tr>
-                                        <td>{{ $index + 1 }}</td>
-                                        <td>
-                                            <span class="badge badge-info">{{ $item->product->item_code ?? 'N/A' }}</span>
-                                        </td>
-                                        <td>
-                                            <strong>{{ $item->product->name }}</strong>
-                                        </td>
-                                        <td>{{ optional($item->product->category)->name ?? 'N/A' }}</td>
-                                        <td>
-                                            <span class="badge badge-danger badge-lg">{{ $item->current_stock_units }}</span>
-                                        </td>
-                                        <td>
-                                            @if ($item->packaging_type === 'pack')
-                                                <span class="badge badge-warning">Pack</span>
-                                                <small class="d-block">Size: {{ $item->pack_size }} {{ $item->unit }}</small>
-                                            @else
-                                                <span class="badge badge-secondary">Unit</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-danger">
-                                                <i class="fas fa-times-circle"></i> No Stock Record
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="mt-3">
-                        <p class="text-muted">
-                            <i class="fas fa-info-circle"></i> 
-                            Showing {{ $totalZeroStock }} out of {{ $totalProducts }} total product(s) with no stock records
-                        </p>
-                    </div>
-                @endif
+                <div class="table-responsive">
+                    <table id="zero_stock_table" class="table table-bordered table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Product Code</th>
+                                <th>Product Name</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Packaging Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -82,15 +35,26 @@
 
 @push('scripts')
 <script>
-$(function() {
+$(function () {
     $('#zero_stock_table').DataTable({
-        responsive: true,
-        lengthChange: false,
-        autoWidth: false,
-        pageLength: 20,
+        processing: true, serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
         buttons: ["csv", "excel", "pdf", "print"],
-        order: [[0, 'asc']]
-    }).buttons().container().appendTo('#zero_stock_table_wrapper .col-md-6:eq(0)');
+        ajax: '{{ route('reports.zero-stock.data') }}',
+        columns: [
+            { data: 'no', orderable: false, searchable: false },
+            { data: 'item_code' },
+            { data: 'name' },
+            { data: 'category' },
+            { data: 'current_stock_units' },
+            { data: 'packaging', orderable: false },
+            { data: 'status', orderable: false }
+        ],
+        order: [[0, 'asc']],
+        pageLength: 25
+    });
 });
 </script>
 @endpush

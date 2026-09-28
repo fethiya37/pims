@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\DataTables\DataTableQuery;
+use App\Http\DataTables\DataTableRequest;
+use App\Http\DataTables\DataTableResponse;
 use App\Models\GoodsReceipt;
 use App\Models\GoodsReceiptItem;
+use App\Models\InventoryTransaction;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\StockBatch;
-use App\Models\InventoryTransaction;
 use App\Models\Supplier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -21,16 +25,9 @@ class GoodsReceiptController extends Controller
         $user = Auth::user();
 
         if ($user->role && $user->role->role_name === 'Super Admin') {
-            $receipts = GoodsReceipt::with(['location', 'supplier', 'user', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
             $locations = Location::where('type', 'store')->orderBy('id', 'desc')->get();
             $isSuperAdmin = true;
         } else {
-            $receipts = GoodsReceipt::where('location_id', $user->location_id)
-                ->with(['location', 'supplier', 'user', 'items.product'])
-                ->orderBy('created_at', 'desc')
-                ->get();
             $locations = Location::where('id', $user->location_id)
                 ->where('type', 'store')
                 ->orderBy('id', 'desc')
@@ -41,7 +38,107 @@ class GoodsReceiptController extends Controller
         $products = Product::orderBy('name', 'asc')->get();
         $suppliers = Supplier::all();
 
-        return view('pages.goods_receipts.index', compact('receipts', 'locations', 'products', 'suppliers', 'isSuperAdmin'));
+        return view('pages.goods_receipts.index', compact('locations', 'products', 'suppliers', 'isSuperAdmin'));
+    }
+
+    public function getData(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        $req = new DataTableRequest($request, [
+            0 => 'id',
+            1 => 'reference_number',
+            2 => 'receipt_date',
+            3 => 'location_id',
+            4 => 'supplier_id',
+            5 => 'id',
+            6 => 'status',
+        ], 'created_at');
+
+        $base = GoodsReceipt::query()
+            ->with(['location', 'supplier', 'user', 'items.product'])
+            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+
+        $dtq = (new DataTableQuery($base, $req))
+            ->searchable(['reference_number', 'delivered_by'])
+            ->searchRelations([
+                'location' => ['name'],
+                'supplier' => ['name'],
+            ]);
+
+        [$total, $filtered, $rows] = $dtq->paginate();
+
+        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($receipt, $no) {
+            $badge = $receipt->status === 'received' ? 'success'
+                   : ($receipt->status === 'cancelled' ? 'danger' : 'warning');
+
+            if ($receipt->items->count() > 0) {
+                $parts = [];
+                foreach ($receipt->items as $item) {
+                    $name = e(optional($item->product)->name ?? 'N/A');
+                    $qty  = e($item->quantity);
+                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
+                }
+                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 180px;">' . implode('', $parts) . '</div>';
+            } else {
+                $itemsSummary = '<span class="text-muted">No items</span>';
+            }
+
+            $actions = '<button type="button" class="btn btn-success btn-sm view-receipt-btn" data-id="' . $receipt->id . '"><i class="fas fa-eye"></i> View</button>';
+
+            if ($receipt->status === 'draft') {
+                $actions .= ' <button type="button" class="btn btn-info btn-sm edit-receipt-btn" data-id="' . $receipt->id . '"><i class="fas fa-edit"></i></button>';
+                $actions .= ' <a href="' . route('goods-receipts.receive', $receipt->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Mark this receipt as received?\');">Receive</a>';
+                $actions .= ' <form action="' . route('goods-receipts.destroy', $receipt->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this receipt?\');">'
+                          . csrf_field() . method_field('DELETE')
+                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+            }
+
+            return [
+                'no'        => $no,
+                'reference' => e($receipt->reference_number ?? '#' . $receipt->id),
+                'date'      => $receipt->receipt_date ? \Carbon\Carbon::parse($receipt->receipt_date)->toFormattedDateString() : 'N/A',
+                'location'  => e(optional($receipt->location)->name ?? 'N/A'),
+                'supplier'  => e(optional($receipt->supplier)->name ?? 'N/A'),
+                'items'     => $itemsSummary,
+                'status'    => '<span class="badge badge-' . $badge . '">' . e(ucfirst($receipt->status)) . '</span>',
+                'actions'   => $actions,
+            ];
+        });
+    }
+
+    public function view($id): View
+    {
+        $receipt = GoodsReceipt::with(['location', 'supplier', 'user', 'items.product'])->findOrFail($id);
+
+        return view('pages.goods_receipts.partials.view', compact('receipt'));
+    }
+
+    public function editForm($id): View
+    {
+        $receipt = GoodsReceipt::with('items.product')->findOrFail($id);
+
+        if ($receipt->status !== 'draft') {
+            abort(403, 'Only draft receipts can be edited.');
+        }
+
+        $user = Auth::user();
+
+        if ($user->role && $user->role->role_name === 'Super Admin') {
+            $locations = Location::where('type', 'store')->orderBy('id', 'desc')->get();
+            $isSuperAdmin = true;
+        } else {
+            $locations = Location::where('id', $user->location_id)->where('type', 'store')->orderBy('id', 'desc')->get();
+            $isSuperAdmin = false;
+        }
+
+        $products = Product::orderBy('name', 'asc')->get();
+        $suppliers = Supplier::all();
+
+        return view('pages.goods_receipts.partials.edit-form', compact(
+            'receipt', 'locations', 'products', 'suppliers', 'isSuperAdmin'
+        ));
     }
 
     public function store(Request $request)

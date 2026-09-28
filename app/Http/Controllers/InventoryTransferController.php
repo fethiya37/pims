@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\DataTables\DataTableQuery;
+use App\Http\DataTables\DataTableRequest;
+use App\Http\DataTables\DataTableResponse;
+use App\Models\InventoryTransaction;
 use App\Models\InventoryTransfer;
 use App\Models\InventoryTransferItem;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\StockBatch;
-use App\Models\InventoryTransaction;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,18 +22,11 @@ class InventoryTransferController extends Controller
     public function index(): View
     {
         $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        if ($user->role && $user->role->role_name === 'Super Admin') {
-            $transfers = InventoryTransfer::with(['fromLocation', 'toLocation', 'items.product', 'requestedBy', 'approvedBy', 'issuedBy', 'receivedBy'])
-                ->orderBy('created_at', 'desc')
-                ->get();
+        if ($isSuperAdmin) {
             $locations = Location::orderBy('id', 'desc')->get();
         } else {
-            $transfers = InventoryTransfer::where('from_location_id', $user->location_id)
-                ->orWhere('to_location_id', $user->location_id)
-                ->with(['fromLocation', 'toLocation', 'items.product', 'requestedBy', 'approvedBy', 'issuedBy', 'receivedBy'])
-                ->orderBy('created_at', 'desc')
-                ->get();
             $locations = Location::where('id', $user->location_id)->get();
         }
 
@@ -38,9 +35,149 @@ class InventoryTransferController extends Controller
         $saleStores = Location::where('type', 'sale')->get();
         $pointOfUseStores = Location::where('type', 'point_of_use')->get();
 
+        return view('pages.inventory_transfers.index', compact(
+            'locations', 'products', 'stores', 'saleStores', 'pointOfUseStores', 'isSuperAdmin'
+        ));
+    }
+
+    public function getData(Request $request): JsonResponse
+    {
+        $user = Auth::user();
         $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        return view('pages.inventory_transfers.index', compact('transfers', 'locations', 'products', 'stores', 'saleStores', 'pointOfUseStores', 'isSuperAdmin'));
+        $req = new DataTableRequest($request, [
+            0 => 'id',
+            1 => 'id',
+            2 => 'requested_date',
+            3 => 'from_location_id',
+            4 => 'to_location_id',
+            5 => 'id',
+            6 => 'status',
+        ], 'created_at');
+
+        $base = InventoryTransfer::query()
+            ->with(['fromLocation', 'toLocation', 'items.product'])
+            ->when(!$isSuperAdmin, function ($q) use ($user) {
+                $q->where(function ($inner) use ($user) {
+                    $inner->where('from_location_id', $user->location_id)
+                          ->orWhere('to_location_id', $user->location_id);
+                });
+            });
+
+        $dtq = (new DataTableQuery($base, $req))
+            ->searchRelations([
+                'fromLocation' => ['name'],
+                'toLocation'   => ['name'],
+            ]);
+
+        [$total, $filtered, $rows] = $dtq->paginate();
+
+        $statusClasses = [
+            'pending'  => 'warning',
+            'approved' => 'info',
+            'issued'   => 'primary',
+            'received' => 'success',
+            'rejected' => 'danger',
+            'cancelled'=> 'secondary',
+        ];
+
+        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($transfer, $no) use ($isSuperAdmin, $statusClasses, $user) {
+            if ($transfer->items->count() > 0) {
+                $parts = [];
+                foreach ($transfer->items as $item) {
+                    $name = e(optional($item->product)->name ?? 'N/A');
+                    $qty = e($item->quantity);
+                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
+                }
+                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 180px;">' . implode('', $parts) . '</div>';
+            } else {
+                $itemsSummary = '<span class="text-muted">No items</span>';
+            }
+
+            $statusClass = $statusClasses[$transfer->status] ?? 'secondary';
+            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($transfer->status)) . '</span>';
+
+            $actions = '';
+
+            if ($transfer->status === 'pending') {
+                $actions .= '<button type="button" class="btn btn-info btn-sm edit-transfer-btn" data-id="' . $transfer->id . '"><i class="fas fa-edit"></i></button>';
+                $actions .= ' <form action="' . route('inventory-transfers.destroy', $transfer->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this transfer?\');">'
+                          . csrf_field() . method_field('DELETE')
+                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+
+                if ($isSuperAdmin || $user->location_id == $transfer->from_location_id) {
+                    $actions .= ' <a href="' . route('inventory-transfers.approve', $transfer->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Approve this transfer?\');"><i class="fas fa-check"></i> Approve</a>';
+                    $actions .= ' <button type="button" class="btn btn-danger btn-sm reject-transfer-btn" data-id="' . $transfer->id . '"><i class="fas fa-times"></i></button>';
+                }
+            }
+
+            if ($transfer->status === 'approved') {
+                if ($isSuperAdmin || $user->location_id == $transfer->from_location_id) {
+                    $actions .= ' <a href="' . route('inventory-transfers.issue', $transfer->id) . '" class="btn btn-primary btn-sm" onclick="return confirm(\'Issue this transfer?\');"><i class="fas fa-clipboard-check"></i> Issue</a>';
+                }
+            }
+
+            if ($transfer->status === 'issued') {
+                if ($isSuperAdmin || $user->location_id == $transfer->to_location_id) {
+                    $actions .= ' <a href="' . route('inventory-transfers.receive', $transfer->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Receive this transfer?\');"><i class="fas fa-box"></i> Receive</a>';
+                }
+            }
+
+            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-transfer-btn" data-id="' . $transfer->id . '"><i class="fas fa-eye"></i></button>';
+
+            return [
+                'no'        => $no,
+                'reference' => '#' . $transfer->id,
+                'date'      => $transfer->requested_date ? \Carbon\Carbon::parse($transfer->requested_date)->toFormattedDateString() : 'N/A',
+                'from'      => e(optional($transfer->fromLocation)->name ?? 'N/A'),
+                'to'        => e(optional($transfer->toLocation)->name ?? 'N/A'),
+                'items'     => $itemsSummary,
+                'status'    => $statusBadge,
+                'actions'   => $actions,
+            ];
+        });
+    }
+
+    public function view($id): View
+    {
+        $transfer = InventoryTransfer::with([
+            'fromLocation', 'toLocation', 'items.product',
+            'requestedBy', 'approvedBy', 'issuedBy', 'receivedBy',
+        ])->findOrFail($id);
+
+        $statusClasses = [
+            'pending'  => 'warning',
+            'approved' => 'info',
+            'issued'   => 'primary',
+            'received' => 'success',
+            'rejected' => 'danger',
+            'cancelled'=> 'secondary',
+        ];
+
+        $statusClass = $statusClasses[$transfer->status] ?? 'secondary';
+
+        return view('pages.inventory_transfers.partials.view', compact('transfer', 'statusClass'));
+    }
+
+    public function editForm($id): View
+    {
+        $transfer = InventoryTransfer::with('items.product')->findOrFail($id);
+
+        if ($transfer->status !== 'pending') {
+            abort(403, 'Only pending transfers can be edited.');
+        }
+
+        $user = Auth::user();
+        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+
+        $products = Product::orderBy('name', 'asc')->get();
+        $stores = Location::where('type', 'store')->get();
+        $saleStores = Location::where('type', 'sale')->get();
+        $pointOfUseStores = Location::where('type', 'point_of_use')->get();
+
+        return view('pages.inventory_transfers.partials.edit-form', compact(
+            'transfer', 'products', 'stores', 'saleStores', 'pointOfUseStores', 'isSuperAdmin'
+        ));
     }
 
     public function store(Request $request)
@@ -95,6 +232,7 @@ class InventoryTransferController extends Controller
             }
 
             if (!empty($totalErrors)) {
+                DB::rollBack();
                 return back()->withErrors($totalErrors)->withInput();
             }
 
@@ -190,6 +328,7 @@ class InventoryTransferController extends Controller
             }
 
             if (!empty($totalErrors)) {
+                DB::rollBack();
                 return back()->withErrors($totalErrors)->withInput();
             }
 

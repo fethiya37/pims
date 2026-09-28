@@ -48,9 +48,6 @@
                         <div class="col-md-2">
                             <input type="date" name="to_date" value="{{ $toDate }}" class="form-control" onchange="this.form.submit()">
                         </div>
-                        <div class="col-md-1">
-                            <a href="{{ route('reports.treatment-consumption') }}" class="btn btn-secondary">Reset</a>
-                        </div>
                     </div>
                 </form>
 
@@ -78,6 +75,7 @@
                 <table id="treatment_table" class="table table-bordered table-striped">
                     <thead>
                         <tr>
+                            <th>No</th>
                             <th>Date</th>
                             <th>Reference</th>
                             <th>Patient</th>
@@ -87,29 +85,7 @@
                             <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @foreach ($consumptions as $c)
-                            <tr>
-                                <td>{{ $c->created_at->format('Y-m-d H:i') }}</td>
-                                <td>TC-#{{ $c->id }}</td>
-                                <td>{{ $c->patient->full_name ?? 'N/A' }}</td>
-                                <td>{{ $c->location->name ?? 'N/A' }}</td>
-                                <td>{{ $c->doctor->name ?? 'N/A' }}</td>
-                                <td>
-                                    <ul class="mb-0">
-                                        @foreach ($c->items as $item)
-                                            <li>{{ $item->product->name ?? 'N/A' }}: {{ $item->quantity }}</li>
-                                        @endforeach
-                                    </ul>
-                                </td>
-                                <td>
-                                    <span class="badge badge-{{ $c->status == 'completed' ? 'success' : 'warning' }}">
-                                        {{ ucfirst($c->status) }}
-                                    </span>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
+                    <tbody></tbody>
                 </table>
             </div>
         </div>
@@ -119,17 +95,37 @@
 
 @push('scripts')
 <script>
-$(function() {
+$(function () {
     $('.select2').select2();
-    const dt = $('#treatment_table').DataTable({
-        responsive: true,
-        lengthChange: false,
-        autoWidth: false,
-        pageLength: 20,
-        order: [[0, 'desc']],
-        buttons: ["csv","excel","pdf","print"]
+    $('#treatment_table').DataTable({
+        processing: true, serverSide: true,
+        dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+             "<'row'<'col-sm-12'tr>>" +
+             "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: {
+            url: '{{ route('reports.treatment-consumption.data') }}',
+            data: {
+                patient_id: '{{ request('patient_id') }}',
+                product_id: '{{ request('product_id') }}',
+                location_id: '{{ $locationId }}',
+                from_date: '{{ $fromDate }}',
+                to_date: '{{ $toDate }}'
+            }
+        },
+        columns: [
+            { data: 'no', orderable: false, searchable: false },
+            { data: 'date' },
+            { data: 'reference', orderable: false },
+            { data: 'patient' },
+            { data: 'location' },
+            { data: 'doctor' },
+            { data: 'items', orderable: false, searchable: false },
+            { data: 'status' }
+        ],
+        order: [[1, 'desc']],
+        pageLength: 25
     });
-    dt.buttons().container().appendTo('#treatment_table_wrapper .col-md-6:eq(0)');
 });
 </script>
 @endpush

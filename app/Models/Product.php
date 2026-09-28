@@ -39,4 +39,34 @@ class Product extends Model
     {
         return $this->hasMany(ProductLocationSetting::class);
     }
+
+    public function saleItems()
+{
+    return $this->hasMany(ProductSaleItem::class);
+}
+
+public function treatmentItems()
+{
+    return $this->hasMany(TreatmentConsumptionItem::class);
+}
+
+public function transferItems()
+{
+    return $this->hasMany(InventoryTransferItem::class);
+}
+
+public function receiptItems()
+{
+    return $this->hasMany(GoodsReceiptItem::class);
+}
+
+public function adjustments()
+{
+    return $this->hasMany(InventoryAdjustment::class);
+}
+
+public function transactions()
+{
+    return $this->hasMany(InventoryTransaction::class);
+}
 }

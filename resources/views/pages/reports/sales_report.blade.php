@@ -18,7 +18,6 @@
 
                 <div class="tab-content mt-3">
                     <form method="GET" action="{{ route('reports.sales-report') }}" class="mb-3">
-                        <input type="hidden" name="active_tab" value="{{ $activeTab ?? 'details' }}">
                         <div class="row">
                             <div class="col-md-3">
                                 <select name="product_id" class="form-control select2" onchange="this.form.submit()">
@@ -56,6 +55,7 @@
                         <table id="detail_table" class="table table-bordered table-striped">
                             <thead>
                                 <tr>
+                                    <th>No</th>
                                     <th>Date</th>
                                     <th>Reference</th>
                                     <th>Invoice</th>
@@ -69,25 +69,7 @@
                                     <th>User</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                @foreach ($sales as $sale)
-                                    @foreach ($sale->items as $item)
-                                        <tr>
-                                            <td>{{ $sale->created_at->format('Y-m-d H:i') }}</td>
-                                            <td>SALE-#{{ $sale->id }}</td>
-                                            <td>{{ $sale->invoice_no ?? 'N/A' }}</td>
-                                            <td>{{ $sale->location->name ?? 'N/A' }}</td>
-                                            <td>{{ $item->product->name ?? 'N/A' }}</td>
-                                            <td>{{ $item->quantity }}</td>
-                                            <td>{{ number_format($item->unit_price, 2) }}</td>
-                                            <td>{{ number_format($item->line_total, 2) }}</td>
-                                            <td>{{ number_format($item->total_tax, 2) }}</td>
-                                            <td>{{ number_format($item->line_total + $item->total_tax, 2) }}</td>
-                                            <td>{{ $sale->user->name ?? 'N/A' }}</td>
-                                        </tr>
-                                    @endforeach
-                                @endforeach
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
 
@@ -135,18 +117,9 @@
                     <div class="tab-pane fade" id="top">
                         <table id="top_table" class="table table-bordered table-striped">
                             <thead>
-                                <tr><th>#</th><th>Product</th><th>Total Quantity</th><th>Total Revenue</th></tr>
+                                <tr><th>No</th><th>Product</th><th>Total Quantity</th><th>Total Revenue</th></tr>
                             </thead>
-                            <tbody>
-                                @foreach ($topProducts as $i => $item)
-                                    <tr>
-                                        <td>{{ $i + 1 }}</td>
-                                        <td>{{ $item->product->name ?? 'N/A' }}</td>
-                                        <td>{{ number_format($item->total_quantity ?? 0) }}</td>
-                                        <td>{{ number_format($item->total_revenue ?? 0, 2) }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
+                            <tbody></tbody>
                         </table>
                     </div>
                 </div>
@@ -158,27 +131,59 @@
 
 @push('scripts')
 <script>
-$(function() {
+$(function () {
     $('.select2').select2();
-    $('#detail_table').DataTable({
-        responsive: true,
-        lengthChange: false,
-        autoWidth: false,
-        pageLength: 20,
-        order: [[0, 'desc']],
-        buttons: ["csv","excel","pdf","print"]
-    }).buttons().container().appendTo('#detail_table_wrapper .col-md-6:eq(0)');
 
-    $('#top_table').DataTable({
-        responsive: true,
-        lengthChange: false,
-        autoWidth: false,
-        pageLength: 20,
-        buttons: ["csv","excel","pdf","print"]
-    }).buttons().container().appendTo('#top_table_wrapper .col-md-6:eq(0)');
+    var filterData = {
+        product_id: '{{ request('product_id') }}',
+        location_id: '{{ $locationId }}',
+        from_date: '{{ $fromDate }}',
+        to_date: '{{ $toDate }}'
+    };
 
-    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
-        $('input[name="active_tab"]').val($(e.target).attr('href').replace('#', ''));
+    var domLayout = "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
+                    "<'row'<'col-sm-12'tr>>" +
+                    "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>";
+
+    var detailTable = $('#detail_table').DataTable({
+        processing: true, serverSide: true,
+        dom: domLayout,
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: { url: '{{ route('reports.sales-report.data') }}', data: filterData },
+        columns: [
+            { data: 'no', orderable: false, searchable: false },
+            { data: 'date' },
+            { data: 'reference', orderable: false },
+            { data: 'invoice' },
+            { data: 'location', orderable: false },
+            { data: 'product' },
+            { data: 'qty', orderable: false },
+            { data: 'unit_price', orderable: false },
+            { data: 'line_total', orderable: false },
+            { data: 'tax', orderable: false },
+            { data: 'total', orderable: false },
+            { data: 'user', orderable: false }
+        ],
+        order: [[1, 'desc']],
+        pageLength: 25
+    });
+
+    var topTable = $('#top_table').DataTable({
+        processing: true, serverSide: true,
+        dom: domLayout,
+        buttons: ["csv", "excel", "pdf", "print"],
+        ajax: { url: '{{ route('reports.sales-report.top-data') }}', data: filterData },
+        columns: [
+            { data: 'no', orderable: false, searchable: false },
+            { data: 'product' },
+            { data: 'total_quantity', orderable: false },
+            { data: 'total_revenue' }
+        ],
+        order: [[3, 'desc']],
+        pageLength: 25
+    });
+
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
         $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
     });
 });

@@ -10,11 +10,14 @@ use App\Models\StockBatch;
 use App\Models\InventoryTransaction;
 use App\Models\ProductLocationSetting;
 use App\Models\ProductSequence;
+use App\Services\ProductDeletionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
+
 
 class ProductController extends Controller
 {
@@ -29,21 +32,107 @@ class ProductController extends Controller
     }
 
     public function index(): View
-    {
-        $products = Product::orderBy('id', 'desc')->with(['category', 'openingQuantities.location'])->get();
-        $categories = Category::all();
-        $user = Auth::user();
+{
+    $categories = Category::all();
+    $user = Auth::user();
 
-        if ($user->role && $user->role->role_name === 'Super Admin') {
-            $locations = Location::orderBy('id', 'desc')->get();
-        } else {
-            $locations = $user->location
-                ? Location::where('type', $user->location->type)->orderBy('id', 'desc')->get()
-                : collect();
-        }
-
-        return view('pages.products.product', compact('products', 'categories', 'locations'));
+    if ($user->role && $user->role->role_name === 'Super Admin') {
+        $locations = Location::orderBy('id', 'desc')->get();
+    } else {
+        $locations = $user->location
+            ? Location::where('type', $user->location->type)->orderBy('id', 'desc')->get()
+            : collect();
     }
+
+    return view('pages.products.product', compact('categories', 'locations'));
+}
+
+public function getProductData(Request $request)
+{
+    $draw   = (int) $request->input('draw', 1);
+    $start  = max(0, (int) $request->input('start', 0));
+    $length = min(200, max(1, (int) $request->input('length', 25)));
+    $search = trim((string) $request->input('search.value', ''));
+
+    $columns = [
+        0 => 'id',
+        1 => 'item_code',
+        2 => 'name',
+        3 => 'category_id',
+        4 => 'unit',
+        5 => 'packaging_type',
+        6 => 'status',
+        7 => 'description',
+    ];
+
+    $colIndex = (int) $request->input('order.0.column', 0);
+    $orderBy  = $columns[$colIndex] ?? 'id';
+    $orderDir = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+
+    $query = Product::with('category');
+
+    if ($search !== '') {
+        $query->where(function ($q) use ($search) {
+            $q->where('item_code', 'like', "%{$search}%")
+              ->orWhere('name', 'like', "%{$search}%")
+              ->orWhere('unit', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%")
+              ->orWhereHas('category', function ($c) use ($search) {
+                  $c->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    $totalRecords = Cache::remember('dt.products.total', 60, function () {
+        return Product::count();
+    });
+
+    $recordsFiltered = $search === ''
+        ? $totalRecords
+        : (clone $query)->count();
+
+    $products = $query
+        ->orderBy($orderBy, $orderDir)
+        ->skip($start)
+        ->take($length)
+        ->get();
+
+    $data = [];
+    $no = $start + 1;
+
+    foreach ($products as $product) {
+        $data[] = [
+            'no'          => $no++,
+            'item_code'   => '<span class="badge badge-info">' . e($product->item_code) . '</span>',
+            'name'        => e($product->name),
+            'category'    => e(optional($product->category)->name ?? '—'),
+            'unit'        => e($product->unit ?? '—'),
+            'packaging'   => $product->packaging_type === 'pack'
+                ? '<span class="badge badge-warning">Pack</span><small class="d-block">' . e($product->default_pack_size ?? 1) . ' × ' . e($product->unit) . '</small>'
+                : '<span class="badge badge-secondary">Unit</span>',
+            'status'      => $product->status === 'active'
+                ? '<span class="badge badge-success">Active</span>'
+                : '<span class="badge badge-secondary">Inactive</span>',
+            'description' => e($product->description ?? '—'),
+            'actions'     => view('pages.products.partials.actions', compact('product'))->render(),
+        ];
+    }
+
+    return response()->json([
+        'draw'            => $draw,
+        'recordsTotal'    => $totalRecords,
+        'recordsFiltered' => $recordsFiltered,
+        'data'            => $data,
+    ]);
+}
+
+public function editProductForm($id)
+{
+    $product = Product::findOrFail($id);
+    $categories = Category::all();
+
+    return view('pages.products.partials.edit-form', compact('product', 'categories'));
+}
 
     public function openingQuantities($productId): View
     {
@@ -160,22 +249,19 @@ class ProductController extends Controller
         }
     }
 
-    public function deleteProduct($id)
-    {
-        try {
-            $product = Product::findOrFail($id);
-            $hasStock = StockBatch::where('product_id', $id)->exists();
+    public function deleteProduct($id, ProductDeletionService $service)
+{
+    try {
+        $product = Product::findOrFail($id);
 
-            if ($hasStock) {
-                return back()->withErrors('Cannot delete this product because it has existing inventory records. Please adjust or remove the stock first.');
-            }
+        $service->deleteProduct($product);
 
-            $product->delete();
-            return back()->with('success', 'Product deleted successfully.');
-        } catch (\Exception $e) {
-            return back()->withErrors('Error deleting product: ' . $e->getMessage());
-        }
+        return back()->with('success', 'Product and all related records deleted successfully.');
+    } catch (\Throwable $e) {
+        report($e);
+        return back()->withErrors('Error deleting product: ' . $e->getMessage());
     }
+}
 
     public function storeOpeningQuantities(Request $request, $productId)
     {
@@ -320,4 +406,5 @@ class ProductController extends Controller
             return back()->withErrors('Error deleting opening quantity: ' . $e->getMessage());
         }
     }
+
 }
