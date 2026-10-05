@@ -10,7 +10,7 @@ class SupplierController extends Controller
 {
     public function index()
     {
-        $suppliers = Supplier::with('contacts')->get();
+        $suppliers = Supplier::with('contacts')->orderBy('created_at', 'desc')->orderBy('id', 'desc')->get();
         return view('pages.suppliers.index', compact('suppliers'));
     }
 

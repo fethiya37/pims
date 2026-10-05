@@ -34,6 +34,7 @@
     </div>
 </div>
 
+{{-- CREATE MODAL --}}
 <div class="modal fade" id="adjustmentModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
@@ -73,25 +74,13 @@
                         </div>
                     </div>
 
-                    <div class="row">
-                        <div class="col-12 table-responsive">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Product</th>
-                                        <th>Type</th>
-                                        <th>Lot/Batch</th>
-                                        <th>Expiry</th>
-                                        <th>Full Packages</th>
-                                        <th>Units</th>
-                                        <th>Pack Size</th>
-                                        <th>Total Qty</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody id="add_items">
-                                    <tr>
-                                        <td style="width: 200px;">
+                    <div id="add_items">
+                        <div class="card card-outline card-secondary adjustment-item mb-2" data-index="0">
+                            <div class="card-body py-3">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group mb-2">
+                                            <label class="small mb-1">Product</label>
                                             <select name="items[0][product_id]" class="form-control product-select" required>
                                                 <option value="">Select</option>
                                                 @foreach ($products as $product)
@@ -102,28 +91,66 @@
                                                     </option>
                                                 @endforeach
                                             </select>
-                                        </td>
-                                        <td style="width: 100px;">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group mb-2">
+                                            <label class="small mb-1">Type</label>
                                             <select name="items[0][adjustment_type]" class="form-control">
                                                 <option value="IN">Stock In</option>
                                                 <option value="OUT">Stock Out</option>
                                             </select>
-                                        </td>
-                                        <td><input type="text" name="items[0][lot_number]" class="form-control" placeholder="Lot #"></td>
-                                        <td><input type="date" name="items[0][expiry_date]" class="form-control" required></td>
-                                        <td><input type="number" name="items[0][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required></td>
-                                        <td><input type="number" name="items[0][extra_units]" class="form-control extra-input" value="0" min="0" step="1"></td>
-                                        <td><input type="text" class="form-control pack-size-display" value="0" readonly></td>
-                                        <td><input type="text" name="items[0][quantity]" class="form-control quantity-display" readonly></td>
-                                        <td>
-                                            <div class="d-flex">
-                                                <button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button>
-                                                <button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-2">
+                                            <label class="small mb-1">Lot / Batch No</label>
+                                            <input type="text" name="items[0][lot_number]" class="form-control" placeholder="Optional">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-2">
+                                            <label class="small mb-1">Expiry Date</label>
+                                            <input type="date" name="items[0][expiry_date]" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row align-items-end">
+                                    <div class="col-md-2">
+                                        <div class="form-group mb-0">
+                                            <label class="small mb-1">Full Packages</label>
+                                            <input type="number" name="items[0][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group mb-0">
+                                            <label class="small mb-1">Units</label>
+                                            <input type="number" name="items[0][extra_units]" class="form-control extra-input" value="0" min="0" step="1">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="form-group mb-0">
+                                            <label class="small mb-1">Pack Size</label>
+                                            <input type="text" class="form-control pack-size-display" value="0" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="form-group mb-0">
+                                            <label class="small mb-1">Total Quantity</label>
+                                            <input type="text" name="items[0][quantity]" class="form-control quantity-display" readonly>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3 text-right">
+                                        <button type="button" class="btn btn-danger btn-sm remove-tr">
+                                            <i class="fa fa-times"></i> Remove
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-sm add-row">
+                                            <i class="fa fa-plus-circle"></i> Add Another
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -215,16 +242,16 @@
         return p ? p.packaging_type : 'pack';
     }
 
-    function updatePackSize(row) {
-        var select = row.querySelector('.product-select');
-        var display = row.querySelector('.pack-size-display');
+    function updatePackSize(card) {
+        var select = card.querySelector('.product-select');
+        var display = card.querySelector('.pack-size-display');
         if (!select || !display) return;
         display.value = getProductPackSize(select.value);
     }
 
-    function updatePackagesDisabled(row) {
-        var select = row.querySelector('.product-select');
-        var packagesInput = row.querySelector('.packages-input');
+    function updatePackagesDisabled(card) {
+        var select = card.querySelector('.product-select');
+        var packagesInput = card.querySelector('.packages-input');
         if (!select || !packagesInput) return;
         if (getProductPackagingType(select.value) === 'unit') {
             packagesInput.readOnly = true;
@@ -234,11 +261,11 @@
         }
     }
 
-    function updateQuantity(row) {
-        var packagesInput = row.querySelector('.packages-input');
-        var extraInput = row.querySelector('.extra-input');
-        var quantityDisplay = row.querySelector('.quantity-display');
-        var packSizeDisplay = row.querySelector('.pack-size-display');
+    function updateQuantity(card) {
+        var packagesInput = card.querySelector('.packages-input');
+        var extraInput = card.querySelector('.extra-input');
+        var quantityDisplay = card.querySelector('.quantity-display');
+        var packSizeDisplay = card.querySelector('.pack-size-display');
         if (!packagesInput || !extraInput || !quantityDisplay || !packSizeDisplay) return;
 
         var packSize = parseInt(packSizeDisplay.value) || 0;
@@ -247,105 +274,154 @@
         quantityDisplay.value = ((packages * packSize) + extra).toFixed(0);
     }
 
-    function initRow(row) {
-        updatePackSize(row);
-        updatePackagesDisabled(row);
-        updateQuantity(row);
+    function initCard(card) {
+        updatePackSize(card);
+        updatePackagesDisabled(card);
+        updateQuantity(card);
 
-        var packagesInput = row.querySelector('.packages-input');
-        var extraInput = row.querySelector('.extra-input');
-        var productSelect = row.querySelector('.product-select');
+        var packagesInput = card.querySelector('.packages-input');
+        var extraInput = card.querySelector('.extra-input');
+        var productSelect = card.querySelector('.product-select');
 
-        if (packagesInput) packagesInput.addEventListener('input', function () { updateQuantity(row); });
-        if (extraInput) extraInput.addEventListener('input', function () { updateQuantity(row); });
+        if (packagesInput) packagesInput.addEventListener('input', function () { updateQuantity(card); });
+        if (extraInput) extraInput.addEventListener('input', function () { updateQuantity(card); });
         if (productSelect) productSelect.addEventListener('change', function () {
-            updatePackSize(row);
-            updatePackagesDisabled(row);
-            updateQuantity(row);
+            updatePackSize(card);
+            updatePackagesDisabled(card);
+            updateQuantity(card);
         });
     }
 
-    function buildOptions(selectedId) {
+    function buildOptions() {
         var opts = '<option value="">Select</option>';
         products.forEach(function (p) {
-            var sel = (selectedId && selectedId == p.id) ? ' selected' : '';
-            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '"' + sel + '>' + p.name + '</option>';
+            opts += '<option value="' + p.id + '" data-pack-size="' + p.pack_size + '" data-packaging-type="' + p.packaging_type + '">' + p.name + '</option>';
         });
         return opts;
     }
 
-    function buildRow(idx, mode) {
-        var actions = mode === 'edit'
-            ? '<td><button type="button" class="remove-edit-tr btn btn-danger btn-sm"><b>X</b></button></td>'
-            : '<td><div class="d-flex"><button type="button" class="remove-tr btn btn-danger btn-sm mr-1"><b>X</b></button><button type="button" class="btn btn-success btn-sm add-row"><i class="fa fa-plus-circle"></i></button></div></td>';
+    function buildCard(idx, mode) {
+        var buttons = mode === 'edit'
+            ? '<button type="button" class="btn btn-danger btn-sm remove-edit-card"><i class="fa fa-times"></i> Remove</button>'
+            : '<button type="button" class="btn btn-danger btn-sm remove-tr"><i class="fa fa-times"></i> Remove</button>' +
+              '<button type="button" class="btn btn-success btn-sm add-row ml-1"><i class="fa fa-plus-circle"></i> Add Another</button>';
 
         return '' +
-            '<td style="width: 200px;">' +
-                '<select name="items[' + idx + '][product_id]" class="form-control product-select" required>' +
-                    buildOptions(null) +
-                '</select>' +
-            '</td>' +
-            '<td style="width: 100px;">' +
-                '<select name="items[' + idx + '][adjustment_type]" class="form-control">' +
-                    '<option value="IN">Stock In</option>' +
-                    '<option value="OUT">Stock Out</option>' +
-                '</select>' +
-            '</td>' +
-            '<td><input type="text" name="items[' + idx + '][lot_number]" class="form-control" placeholder="Lot #"></td>' +
-            '<td><input type="date" name="items[' + idx + '][expiry_date]" class="form-control" required></td>' +
-            '<td><input type="number" name="items[' + idx + '][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required></td>' +
-            '<td><input type="number" name="items[' + idx + '][extra_units]" class="form-control extra-input" value="0" min="0" step="1"></td>' +
-            '<td><input type="text" class="form-control pack-size-display" value="0" readonly></td>' +
-            '<td><input type="text" name="items[' + idx + '][quantity]" class="form-control quantity-display" readonly></td>' +
-            actions;
+            '<div class="card card-outline card-secondary adjustment-item mb-2" data-index="' + idx + '">' +
+                '<div class="card-body py-3">' +
+                    '<div class="row">' +
+                        '<div class="col-md-4">' +
+                            '<div class="form-group mb-2">' +
+                                '<label class="small mb-1">Product</label>' +
+                                '<select name="items[' + idx + '][product_id]" class="form-control product-select" required>' + buildOptions() + '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-2">' +
+                            '<div class="form-group mb-2">' +
+                                '<label class="small mb-1">Type</label>' +
+                                '<select name="items[' + idx + '][adjustment_type]" class="form-control">' +
+                                    '<option value="IN">Stock In</option>' +
+                                    '<option value="OUT">Stock Out</option>' +
+                                '</select>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-3">' +
+                            '<div class="form-group mb-2">' +
+                                '<label class="small mb-1">Lot / Batch No</label>' +
+                                '<input type="text" name="items[' + idx + '][lot_number]" class="form-control" placeholder="Optional">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-3">' +
+                            '<div class="form-group mb-2">' +
+                                '<label class="small mb-1">Expiry Date</label>' +
+                                '<input type="date" name="items[' + idx + '][expiry_date]" class="form-control" required>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="row align-items-end">' +
+                        '<div class="col-md-2">' +
+                            '<div class="form-group mb-0">' +
+                                '<label class="small mb-1">Full Packages</label>' +
+                                '<input type="number" name="items[' + idx + '][full_packages]" class="form-control packages-input" value="0" min="0" step="1" required>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-2">' +
+                            '<div class="form-group mb-0">' +
+                                '<label class="small mb-1">Units</label>' +
+                                '<input type="number" name="items[' + idx + '][extra_units]" class="form-control extra-input" value="0" min="0" step="1">' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-2">' +
+                            '<div class="form-group mb-0">' +
+                                '<label class="small mb-1">Pack Size</label>' +
+                                '<input type="text" class="form-control pack-size-display" value="0" readonly>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-3">' +
+                            '<div class="form-group mb-0">' +
+                                '<label class="small mb-1">Total Quantity</label>' +
+                                '<input type="text" name="items[' + idx + '][quantity]" class="form-control quantity-display" readonly>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="col-md-3 text-right">' + buttons + '</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
     }
 
     document.addEventListener('click', function (e) {
         var addBtn = e.target.closest('.add-row');
         if (addBtn) {
             e.preventDefault();
-            var tbody = addBtn.closest('tbody');
-            var rowCount = tbody.querySelectorAll('tr').length;
-            var newRow = document.createElement('tr');
-            newRow.innerHTML = buildRow(rowCount, 'create');
-            tbody.appendChild(newRow);
-            initRow(newRow);
+            var container = document.getElementById('add_items');
+            var count = container.querySelectorAll('.adjustment-item').length;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = buildCard(count, 'create');
+            var card = wrapper.firstElementChild;
+            container.appendChild(card);
+            initCard(card);
         }
 
         var removeBtn = e.target.closest('.remove-tr');
         if (removeBtn) {
             e.preventDefault();
-            var row = removeBtn.closest('tr');
-            var tbody = row.closest('tbody');
-            if (tbody.querySelectorAll('tr').length > 1) row.remove();
-            else alert('At least one product is required.');
+            var container = document.getElementById('add_items');
+            var cards = container.querySelectorAll('.adjustment-item');
+            if (cards.length > 1) {
+                removeBtn.closest('.adjustment-item').remove();
+            } else {
+                alert('At least one product is required.');
+            }
         }
 
-        var addEditBtn = e.target.closest('.add-edit-row');
+        var addEditBtn = e.target.closest('.add-edit-card');
         if (addEditBtn) {
             e.preventDefault();
             var targetId = addEditBtn.dataset.target;
             var container = document.getElementById(targetId);
             if (!container) return;
-            var idx = parseInt(addEditBtn.dataset.index) || container.querySelectorAll('tr').length;
-            var newRow = document.createElement('tr');
-            newRow.innerHTML = buildRow(idx, 'edit');
-            container.appendChild(newRow);
-            initRow(newRow);
-            addEditBtn.dataset.index = idx + 1;
+            var count = container.querySelectorAll('.adjustment-item').length;
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = buildCard(count, 'edit');
+            var card = wrapper.firstElementChild;
+            container.appendChild(card);
+            initCard(card);
         }
 
-        var removeEditBtn = e.target.closest('.remove-edit-tr');
+        var removeEditBtn = e.target.closest('.remove-edit-card');
         if (removeEditBtn) {
             e.preventDefault();
-            var row = removeEditBtn.closest('tr');
-            var tbody = row.closest('tbody');
-            if (tbody.querySelectorAll('tr').length > 1) row.remove();
-            else alert('At least one product is required.');
+            var container = removeEditBtn.closest('[id^="edit_items_"]');
+            var cards = container.querySelectorAll('.adjustment-item');
+            if (cards.length > 1) {
+                removeEditBtn.closest('.adjustment-item').remove();
+            } else {
+                alert('At least one product is required.');
+            }
         }
     });
 
-    document.querySelectorAll('#add_items tr').forEach(initRow);
+    document.querySelectorAll('#add_items .adjustment-item').forEach(initCard);
 
     $('#adjustmentsTable').DataTable({
         processing: true,
@@ -383,8 +459,8 @@
         $.get('/inventory-adjustments/' + id + '/edit-form', function (html) {
             $('#editAdjustmentBody').html(html);
             $('#editAdjustmentModal').modal('show');
-            $('#editAdjustmentBody').find('tbody[id^="edit_items_"] tr').each(function () {
-                initRow(this);
+            $('#editAdjustmentBody').find('[id^="edit_items_"] .adjustment-item').each(function () {
+                initCard(this);
             });
         });
     });
