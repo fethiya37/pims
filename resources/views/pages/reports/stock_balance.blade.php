@@ -148,7 +148,7 @@ $(function () {
                 { data: 'last_updated' }
             ],
             order: [[4, 'desc']],
-            pageLength: 25,
+            pageLength: 100,
             drawCallback: function () {
                 $('.pack-col').toggle(hasPackColumn(this.api()));
             }
@@ -168,7 +168,7 @@ $(function () {
                 { data: 'last_updated' }
             ],
             order: [[5, 'desc']],
-            pageLength: 25,
+            pageLength: 100,
             drawCallback: function () {
                 $('.pack-col').toggle(hasPackColumn(this.api()));
             }
@@ -190,7 +190,7 @@ $(function () {
                 { data: 'last_updated' }
             ],
             order: [[7, 'desc']],
-            pageLength: 25,
+            pageLength: 100,
             drawCallback: function () {
                 $('.pack-col').toggle(hasPackColumn(this.api()));
             }

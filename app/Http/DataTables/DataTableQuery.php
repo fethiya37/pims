@@ -3,7 +3,7 @@
 namespace App\Http\DataTables;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DataTableQuery
 {
@@ -35,9 +35,7 @@ class DataTableQuery
         $filtered = clone $this->query;
         $this->applySearch($filtered);
 
-        $recordsFiltered = $this->request->search === ''
-            ? (clone $this->query)->count()
-            : $filtered->count();
+        $recordsFiltered = $this->countRows($filtered);
 
         $rows = $filtered
             ->orderBy($this->request->orderBy, $this->request->orderDir)
@@ -46,6 +44,22 @@ class DataTableQuery
             ->get();
 
         return [$recordsFiltered, $recordsFiltered, $rows];
+    }
+
+    protected function countRows(Builder $query): int
+    {
+        $base = $query->getQuery();
+
+        if (empty($base->groups)) {
+            return (int) $query->count();
+        }
+
+        $sql = $query->toSql();
+        $bindings = $query->getBindings();
+
+        $result = DB::selectOne("SELECT COUNT(*) AS c FROM ({$sql}) AS sub", $bindings);
+
+        return (int) ($result->c ?? 0);
     }
 
     protected function applySearch(Builder $query): void

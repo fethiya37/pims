@@ -103,7 +103,7 @@ $(function () {
             { data: 'user', orderable: false }
         ],
         order: [[1, 'desc']],
-        pageLength: 25,
+        pageLength: 100,
         drawCallback: function () {
             var any = false;
             this.api().rows({ search: 'applied' }).every(function () {

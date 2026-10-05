@@ -53,7 +53,7 @@ $(function () {
             { data: 'status', orderable: false }
         ],
         order: [[0, 'asc']],
-        pageLength: 25
+        pageLength: 100
     });
 });
 </script>

@@ -86,7 +86,13 @@ Route::controller(InventoryAdjustmentController::class)
     ->middleware(['auth', 'verified', 'isSetRole', 'manage_inventory_adjustment'])->group(function () {
         Route::get('/inventory-adjustments', 'index')->name('inventory-adjustments.index');
         Route::get('/inventory-adjustments/data', 'getData')->name('inventory-adjustments.data');
+        Route::get('/inventory-adjustments/{id}/view', 'view')->name('inventory-adjustments.view');
+        Route::get('/inventory-adjustments/{id}/edit-form', 'editForm')->name('inventory-adjustments.edit-form');
         Route::post('/inventory-adjustments', 'store')->name('inventory-adjustments.store');
+        Route::put('/inventory-adjustments/{id}', 'update')->name('inventory-adjustments.update');
+        Route::get('/inventory-adjustments/{id}/approve', 'approve')->name('inventory-adjustments.approve');
+        Route::post('/inventory-adjustments/{id}/reject', 'reject')->name('inventory-adjustments.reject');
+        Route::delete('/inventory-adjustments/{id}', 'destroy')->name('inventory-adjustments.destroy');
     });
 
 Route::controller(CategoryController::class)

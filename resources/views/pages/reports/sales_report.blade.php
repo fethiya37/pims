@@ -165,7 +165,7 @@ $(function () {
             { data: 'user', orderable: false }
         ],
         order: [[1, 'desc']],
-        pageLength: 25
+        pageLength: 100
     });
 
     var topTable = $('#top_table').DataTable({
@@ -180,7 +180,7 @@ $(function () {
             { data: 'total_revenue' }
         ],
         order: [[3, 'desc']],
-        pageLength: 25
+        pageLength: 100
     });
 
     $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {

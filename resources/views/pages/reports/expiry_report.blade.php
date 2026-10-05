@@ -121,7 +121,7 @@ $(function () {
             { data: 'status' }
         ],
         order: [[5, 'asc']],
-        pageLength: 25
+        pageLength: 100
     });
 });
 </script>

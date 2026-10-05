@@ -80,7 +80,7 @@ $(function () {
             { data: 'status' }
         ],
         order: [[0, 'asc']],
-        pageLength: 25,
+        pageLength: 100,
         drawCallback: function () {
             var any = false;
             this.api().rows({ search: 'applied' }).every(function () {

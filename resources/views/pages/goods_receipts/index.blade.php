@@ -424,7 +424,7 @@
             { data: 'actions',    orderable: false, searchable: false }
         ],
         order: [[0, 'desc']],
-        pageLength: 25,
+        pageLength: 100,
         drawCallback: function () {
             $('#totalReceipts').text(this.api().page.info().recordsTotal);
         }

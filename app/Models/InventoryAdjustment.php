@@ -10,30 +10,35 @@ class InventoryAdjustment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'product_id',
         'location_id',
-        'lot_number',
-        'expiry_date',
-        'quantity',
-        'adjustment_type',
+        'status',
         'reason',
-        'user_id',
-        'package',
-        'unit',
+        'requested_by',
+        'approved_by',
+        'approved_at',
     ];
 
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
+    protected $casts = [
+        'approved_at' => 'datetime',
+    ];
 
     public function location()
     {
         return $this->belongsTo(Location::class);
     }
 
-    public function user()
+    public function requestedBy()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(InventoryAdjustmentItem::class);
     }
 }

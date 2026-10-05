@@ -257,7 +257,7 @@ $(function () {
             { data: 'actions',     orderable: false, searchable: false }
         ],
         order: [[1, 'desc']],
-        pageLength: 25,
+        pageLength: 100,
         lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
         language: {
             processing: '<i class="fas fa-spinner fa-spin"></i> Loading...',
