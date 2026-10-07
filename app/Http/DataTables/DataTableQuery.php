@@ -39,26 +39,25 @@ class DataTableQuery
     }
 
     public function paginate(): array
-    {
-        $recordsTotal = (int) $this->query->count();
+{
+    $recordsTotal = $this->countRows($this->query);
 
-        $filtered = clone $this->query;
+    $filtered = clone $this->query;
 
-        $this->applySearch($filtered);
+    $this->applySearch($filtered);
 
-        $recordsFiltered = $this->request->search === ''
-            ? $recordsTotal
-            : $this->countRows($filtered);
+    $recordsFiltered = $this->request->search === ''
+        ? $recordsTotal
+        : $this->countRows($filtered);
 
-        $rows = $filtered
-            ->orderBy($this->request->orderBy, $this->request->orderDir)
-            ->skip($this->request->start)
-            ->take($this->request->length)
-            ->get();
+    $rows = $filtered
+        ->orderBy($this->request->orderBy, $this->request->orderDir)
+        ->skip($this->request->start)
+        ->take($this->request->length)
+        ->get();
 
-        return [$recordsTotal, $recordsFiltered, $rows];
-    }
-
+    return [$recordsTotal, $recordsFiltered, $rows];
+}
     protected function countRows(Builder $query): int
     {
         $base = $query->getQuery();
