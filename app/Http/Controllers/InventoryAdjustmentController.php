@@ -37,89 +37,91 @@ class InventoryAdjustmentController extends Controller
     }
 
     public function getData(Request $request): JsonResponse
-    {
-        $user = Auth::user();
-        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+{
+    $user = Auth::user();
+    $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        $req = new DataTableRequest($request, [
-            0 => 'id',
-            1 => 'id',
-            2 => 'location_id',
-            3 => 'id',
-            4 => 'status',
-            5 => 'requested_by',
-            6 => 'approved_by',
-            7 => 'created_at',
-        ], 'created_at');
+    $req = new DataTableRequest($request, [
+        0 => 'id',
+        1 => 'id',
+        2 => 'location_id',
+        3 => 'id',
+        4 => 'status',
+        5 => 'requested_by',
+        6 => 'approved_by',
+        7 => 'created_at',
+    ], 'created_at');
 
-        $base = InventoryAdjustment::query()
-            ->with(['location', 'requestedBy', 'approvedBy', 'items.product'])
-            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+    $base = InventoryAdjustment::query()
+        ->with(['location', 'requestedBy', 'approvedBy', 'items.product'])
+        ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
 
-        $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['reason'])
-            ->searchRelations([
-                'location'    => ['name'],
-                'requestedBy' => ['name'],
-                'approvedBy'  => ['name'],
-            ]);
+    $dtq = (new DataTableQuery($base, $req))
+        ->searchable(['reason', 'status'])
+        ->searchDates(['created_at', 'approved_at'])
+        ->searchRelations([
+            'location'    => ['name'],
+            'requestedBy' => ['name'],
+            'approvedBy'  => ['name'],
+            'items.product' => ['name'],
+        ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+    [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        $statusClasses = [
-            'pending'  => 'warning',
-            'approved' => 'success',
-            'rejected' => 'danger',
+    $statusClasses = [
+        'pending'  => 'warning',
+        'approved' => 'success',
+        'rejected' => 'danger',
+    ];
+
+    return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($adjustment, $no) use ($statusClasses, $isSuperAdmin) {
+        $itemsSummary = '<span class="text-muted">No items</span>';
+
+        if ($adjustment->items->count() > 0) {
+            $parts = [];
+            foreach ($adjustment->items as $item) {
+                $name = e(optional($item->product)->name ?? 'N/A');
+                $qty  = e($item->quantity);
+                $dir  = $item->adjustment_type === 'IN'
+                    ? '<span class="badge badge-success">IN</span>'
+                    : '<span class="badge badge-danger">OUT</span>';
+                $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . ' ' . $dir . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
+            }
+            $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 220px;">' . implode('', $parts) . '</div>';
+        }
+
+        $statusClass = $statusClasses[$adjustment->status] ?? 'secondary';
+        $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($adjustment->status)) . '</span>';
+
+        $actions = '';
+
+        if ($adjustment->status === 'pending') {
+            $actions .= '<button type="button" class="btn btn-info btn-sm edit-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-edit"></i></button>';
+            $actions .= ' <form action="' . route('inventory-adjustments.destroy', $adjustment->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this request?\');">'
+                      . csrf_field() . method_field('DELETE')
+                      . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+
+            if ($isSuperAdmin) {
+                $actions .= ' <a href="' . route('inventory-adjustments.approve', $adjustment->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Approve this adjustment? Stock will be updated.\');"><i class="fas fa-check"></i> Approve</a>';
+                $actions .= ' <button type="button" class="btn btn-danger btn-sm reject-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-times"></i></button>';
+            }
+        }
+
+        $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-eye"></i></button>';
+
+        return [
+            'no'        => $no,
+            'reference' => '#' . $adjustment->id,
+            'location'  => e(optional($adjustment->location)->name ?? 'N/A'),
+            'items'     => $itemsSummary,
+            'status'    => $statusBadge,
+            'requested' => e(optional($adjustment->requestedBy)->name ?? 'N/A'),
+            'approved'  => e(optional($adjustment->approvedBy)->name ?? '—'),
+            'date'      => $adjustment->created_at ? $adjustment->created_at->format('Y-m-d H:i') : 'N/A',
+            'actions'   => $actions,
         ];
-
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($adjustment, $no) use ($statusClasses, $isSuperAdmin) {
-            $itemsSummary = '<span class="text-muted">No items</span>';
-
-            if ($adjustment->items->count() > 0) {
-                $parts = [];
-                foreach ($adjustment->items as $item) {
-                    $name = e(optional($item->product)->name ?? 'N/A');
-                    $qty  = e($item->quantity);
-                    $dir  = $item->adjustment_type === 'IN'
-                        ? '<span class="badge badge-success">IN</span>'
-                        : '<span class="badge badge-danger">OUT</span>';
-                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . ' ' . $dir . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
-                }
-                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 220px;">' . implode('', $parts) . '</div>';
-            }
-
-            $statusClass = $statusClasses[$adjustment->status] ?? 'secondary';
-            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($adjustment->status)) . '</span>';
-
-            $actions = '';
-
-            if ($adjustment->status === 'pending') {
-                $actions .= '<button type="button" class="btn btn-info btn-sm edit-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-edit"></i></button>';
-                $actions .= ' <form action="' . route('inventory-adjustments.destroy', $adjustment->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this request?\');">'
-                          . csrf_field() . method_field('DELETE')
-                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
-
-                if ($isSuperAdmin) {
-                    $actions .= ' <a href="' . route('inventory-adjustments.approve', $adjustment->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Approve this adjustment? Stock will be updated.\');"><i class="fas fa-check"></i> Approve</a>';
-                    $actions .= ' <button type="button" class="btn btn-danger btn-sm reject-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-times"></i></button>';
-                }
-            }
-
-            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-adjustment-btn" data-id="' . $adjustment->id . '"><i class="fas fa-eye"></i></button>';
-
-            return [
-                'no'        => $no,
-                'reference' => '#' . $adjustment->id,
-                'location'  => e(optional($adjustment->location)->name ?? 'N/A'),
-                'items'     => $itemsSummary,
-                'status'    => $statusBadge,
-                'requested' => e(optional($adjustment->requestedBy)->name ?? 'N/A'),
-                'approved'  => e(optional($adjustment->approvedBy)->name ?? '—'),
-                'date'      => $adjustment->created_at ? $adjustment->created_at->format('Y-m-d H:i') : 'N/A',
-                'actions'   => $actions,
-            ];
-        });
-    }
+    });
+}
 
     public function view($id): View
     {

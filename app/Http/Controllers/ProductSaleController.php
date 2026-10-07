@@ -35,83 +35,85 @@ class ProductSaleController extends Controller
         return view('pages.sales.index', compact('locations', 'products', 'isSuperAdmin'));
     }
 
-    public function getData(Request $request): JsonResponse
-    {
-        $user = Auth::user();
-        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+   public function getData(Request $request): JsonResponse
+{
+    $user = Auth::user();
+    $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        $req = new DataTableRequest($request, [
-            0 => 'id',
-            1 => 'id',
-            2 => 'created_at',
-            3 => 'location_id',
-            4 => 'invoice_no',
-            5 => 'id',
-            6 => 'total_amount',
-            7 => 'status',
-        ], 'created_at');
+    $req = new DataTableRequest($request, [
+        0 => 'id',
+        1 => 'id',
+        2 => 'created_at',
+        3 => 'location_id',
+        4 => 'invoice_no',
+        5 => 'id',
+        6 => 'total_amount',
+        7 => 'status',
+    ], 'created_at');
 
-        $base = ProductSale::query()
-            ->with(['location', 'user', 'items.product'])
-            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+    $base = ProductSale::query()
+        ->with(['location', 'user', 'items.product'])
+        ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
 
-        $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['invoice_no', 'notes'])
-            ->searchRelations([
-                'location' => ['name'],
-                'user'     => ['name'],
-            ]);
+    $dtq = (new DataTableQuery($base, $req))
+        ->searchable(['invoice_no', 'notes', 'payment_type', 'status'])
+        ->searchDates(['sale_date', 'created_at'])
+        ->searchRelations([
+            'location' => ['name'],
+            'user'     => ['name'],
+            'items.product' => ['name'],
+        ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+    [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        $statusClasses = [
-            'pending'   => 'warning',
-            'completed' => 'success',
-            'cancelled' => 'danger',
+    $statusClasses = [
+        'pending'   => 'warning',
+        'completed' => 'success',
+        'cancelled' => 'danger',
+    ];
+
+    return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($sale, $no) use ($statusClasses) {
+        if ($sale->items->count() > 0) {
+            $parts = [];
+            foreach ($sale->items as $item) {
+                $name  = e(optional($item->product)->name ?? 'N/A');
+                $qty   = e($item->quantity);
+                $price = number_format($item->unit_price, 2);
+                $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">' . $qty . ' × ' . $price . '</span></div>';
+            }
+            $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 200px;">' . implode('', $parts) . '</div>';
+        } else {
+            $itemsSummary = '<span class="text-muted">No items</span>';
+        }
+
+        $statusClass = $statusClasses[$sale->status] ?? 'secondary';
+        $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($sale->status)) . '</span>';
+
+        $actions = '';
+
+        if ($sale->status === 'pending') {
+            $actions .= '<button type="button" class="btn btn-info btn-sm edit-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-edit"></i></button>';
+            $actions .= ' <a href="' . route('sales.complete', $sale->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this sale? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
+            $actions .= ' <form action="' . route('sales.destroy', $sale->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this sale?\');">'
+                      . csrf_field() . method_field('DELETE')
+                      . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+        }
+
+        $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-eye"></i></button>';
+
+        return [
+            'no'         => $no,
+            'reference'  => '#' . $sale->id,
+            'date'       => $sale->created_at ? $sale->created_at->toFormattedDateString() : 'N/A',
+            'location'   => e(optional($sale->location)->name ?? 'N/A'),
+            'invoice'    => e($sale->invoice_no ?? 'N/A'),
+            'items'      => $itemsSummary,
+            'total'      => number_format($sale->total_amount, 2),
+            'status'     => $statusBadge,
+            'actions'    => $actions,
         ];
-
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($sale, $no) use ($statusClasses) {
-            if ($sale->items->count() > 0) {
-                $parts = [];
-                foreach ($sale->items as $item) {
-                    $name  = e(optional($item->product)->name ?? 'N/A');
-                    $qty   = e($item->quantity);
-                    $price = number_format($item->unit_price, 2);
-                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">' . $qty . ' × ' . $price . '</span></div>';
-                }
-                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 200px;">' . implode('', $parts) . '</div>';
-            } else {
-                $itemsSummary = '<span class="text-muted">No items</span>';
-            }
-
-            $statusClass = $statusClasses[$sale->status] ?? 'secondary';
-            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($sale->status)) . '</span>';
-
-            $actions = '';
-
-            if ($sale->status === 'pending') {
-                $actions .= '<button type="button" class="btn btn-info btn-sm edit-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-edit"></i></button>';
-                $actions .= ' <a href="' . route('sales.complete', $sale->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this sale? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
-                $actions .= ' <form action="' . route('sales.destroy', $sale->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this sale?\');">'
-                          . csrf_field() . method_field('DELETE')
-                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
-            }
-
-            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-sale-btn" data-id="' . $sale->id . '"><i class="fas fa-eye"></i></button>';
-
-            return [
-                'no'         => $no,
-                'reference'  => '#' . $sale->id,
-                'date'       => $sale->created_at ? $sale->created_at->toFormattedDateString() : 'N/A',
-                'location'   => e(optional($sale->location)->name ?? 'N/A'),
-                'invoice'    => e($sale->invoice_no ?? 'N/A'),
-                'items'      => $itemsSummary,
-                'total'      => number_format($sale->total_amount, 2),
-                'status'     => $statusBadge,
-                'actions'    => $actions,
-            ];
-        });
-    }
+    });
+}
 
     public function view($id): View
     {

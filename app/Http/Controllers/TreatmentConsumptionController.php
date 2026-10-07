@@ -42,80 +42,82 @@ class TreatmentConsumptionController extends Controller
     }
 
     public function getData(Request $request): JsonResponse
-    {
-        $user = Auth::user();
-        $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
+{
+    $user = Auth::user();
+    $isSuperAdmin = $user->role && $user->role->role_name === 'Super Admin';
 
-        $req = new DataTableRequest($request, [
-            0 => 'id',
-            1 => 'id',
-            2 => 'created_at',
-            3 => 'patient_id',
-            4 => 'location_id',
-            5 => 'id',
-            6 => 'status',
-        ], 'created_at');
+    $req = new DataTableRequest($request, [
+        0 => 'id',
+        1 => 'id',
+        2 => 'created_at',
+        3 => 'patient_id',
+        4 => 'location_id',
+        5 => 'id',
+        6 => 'status',
+    ], 'created_at');
 
-        $base = TreatmentConsumption::query()
-            ->with(['patient', 'location', 'doctor', 'items.product'])
-            ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
+    $base = TreatmentConsumption::query()
+        ->with(['patient', 'location', 'doctor', 'items.product'])
+        ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
 
-        $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['diagnosis', 'notes'])
-            ->searchRelations([
-                'patient'  => ['full_name'],
-                'location' => ['name'],
-                'doctor'   => ['name'],
-            ]);
+    $dtq = (new DataTableQuery($base, $req))
+        ->searchable(['diagnosis', 'notes', 'status'])
+        ->searchDates(['treatment_date', 'created_at'])
+        ->searchRelations([
+            'patient'  => ['full_name'],
+            'location' => ['name'],
+            'doctor'   => ['name'],
+            'items.product' => ['name'],
+        ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+    [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        $statusClasses = [
-            'draft'     => 'warning',
-            'completed' => 'success',
-            'cancelled' => 'danger',
+    $statusClasses = [
+        'draft'     => 'warning',
+        'completed' => 'success',
+        'cancelled' => 'danger',
+    ];
+
+    return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($consumption, $no) use ($statusClasses) {
+        if ($consumption->items->count() > 0) {
+            $parts = [];
+            foreach ($consumption->items as $item) {
+                $name = e(optional($item->product)->name ?? 'N/A');
+                $qty  = e($item->quantity);
+                $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
+            }
+            $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 180px;">' . implode('', $parts) . '</div>';
+        } else {
+            $itemsSummary = '<span class="text-muted">No items</span>';
+        }
+
+        $statusClass = $statusClasses[$consumption->status] ?? 'secondary';
+        $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($consumption->status)) . '</span>';
+
+        $actions = '';
+
+        if ($consumption->status === 'draft') {
+            $actions .= '<button type="button" class="btn btn-info btn-sm edit-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-edit"></i></button>';
+            $actions .= ' <a href="' . route('treatments.complete', $consumption->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this treatment? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
+            $actions .= ' <form action="' . route('treatments.destroy', $consumption->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this treatment?\');">'
+                      . csrf_field() . method_field('DELETE')
+                      . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
+        }
+
+        $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-eye"></i></button>';
+
+        return [
+            'no'        => $no,
+            'reference' => '#' . $consumption->id,
+            'date'      => $consumption->created_at ? $consumption->created_at->toFormattedDateString() : 'N/A',
+            'patient'   => e(optional($consumption->patient)->full_name ?? 'N/A'),
+            'location'  => e(optional($consumption->location)->name ?? 'N/A'),
+            'items'     => $itemsSummary,
+            'status'    => $statusBadge,
+            'actions'   => $actions,
         ];
-
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($consumption, $no) use ($statusClasses) {
-            if ($consumption->items->count() > 0) {
-                $parts = [];
-                foreach ($consumption->items as $item) {
-                    $name = e(optional($item->product)->name ?? 'N/A');
-                    $qty  = e($item->quantity);
-                    $parts[] = '<div class="d-flex justify-content-between"><span>' . $name . '</span><span class="text-muted ml-2">(' . $qty . ')</span></div>';
-                }
-                $itemsSummary = '<div style="font-size: 0.85rem; line-height: 1.3; min-width: 180px;">' . implode('', $parts) . '</div>';
-            } else {
-                $itemsSummary = '<span class="text-muted">No items</span>';
-            }
-
-            $statusClass = $statusClasses[$consumption->status] ?? 'secondary';
-            $statusBadge = '<span class="badge badge-' . $statusClass . '">' . e(ucfirst($consumption->status)) . '</span>';
-
-            $actions = '';
-
-            if ($consumption->status === 'draft') {
-                $actions .= '<button type="button" class="btn btn-info btn-sm edit-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-edit"></i></button>';
-                $actions .= ' <a href="' . route('treatments.complete', $consumption->id) . '" class="btn btn-success btn-sm" onclick="return confirm(\'Complete this treatment? Stock will be deducted.\');"><i class="fas fa-check"></i> Complete</a>';
-                $actions .= ' <form action="' . route('treatments.destroy', $consumption->id) . '" method="POST" class="d-inline" onsubmit="return confirm(\'Delete this treatment?\');">'
-                          . csrf_field() . method_field('DELETE')
-                          . '<button type="submit" class="btn btn-danger btn-sm"><i class="fas fa-trash"></i></button></form>';
-            }
-
-            $actions .= ' <button type="button" class="btn btn-secondary btn-sm view-treatment-btn" data-id="' . $consumption->id . '"><i class="fas fa-eye"></i></button>';
-
-            return [
-                'no'        => $no,
-                'reference' => '#' . $consumption->id,
-                'date'      => $consumption->created_at ? $consumption->created_at->toFormattedDateString() : 'N/A',
-                'patient'   => e(optional($consumption->patient)->full_name ?? 'N/A'),
-                'location'  => e(optional($consumption->location)->name ?? 'N/A'),
-                'items'     => $itemsSummary,
-                'status'    => $statusBadge,
-                'actions'   => $actions,
-            ];
-        });
-    }
+    });
+}
 
     public function view($id): View
     {

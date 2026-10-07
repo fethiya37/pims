@@ -61,15 +61,17 @@ class GoodsReceiptController extends Controller
             ->when(!$isSuperAdmin, fn($q) => $q->where('location_id', $user->location_id));
 
         $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['reference_number', 'delivered_by'])
-            ->searchRelations([
-                'location' => ['name'],
-                'supplier' => ['name'],
-            ]);
+    ->searchable(['reference_number', 'delivered_by', 'notes', 'status'])
+    ->searchDates(['receipt_date'])
+    ->searchRelations([
+        'location' => ['name'],
+        'supplier' => ['name'],
+        'items.product' => ['name'],
+    ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($receipt, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($receipt, $no) {
             $badge = $receipt->status === 'received' ? 'success'
                    : ($receipt->status === 'cancelled' ? 'danger' : 'warning');
 

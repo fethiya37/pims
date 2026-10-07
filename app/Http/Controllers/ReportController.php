@@ -6,7 +6,6 @@ use App\Http\DataTables\DataTableQuery;
 use App\Http\DataTables\DataTableRequest;
 use App\Http\DataTables\DataTableResponse;
 use App\Models\InventoryTransaction;
-use App\Models\Location;
 use App\Models\Patient;
 use App\Models\Product;
 use App\Models\ProductLocationSetting;
@@ -18,7 +17,6 @@ use App\Support\LocationScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -100,11 +98,11 @@ class ReportController extends Controller
             $dtq = (new DataTableQuery($base, $req))
                 ->searchRelations(['product' => ['name']]);
 
-            [$total, $filtered, $rows] = $dtq->paginate();
+            [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
             $rows->load('product');
             $rows->each(fn($r) => $this->addPackBreakdown($r, $r->product));
 
-            return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+            return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
                 return [
                     'no'             => $no,
                     'product'        => e(optional($row->product)->name ?? 'N/A'),
@@ -142,11 +140,11 @@ class ReportController extends Controller
                     'location' => ['name'],
                 ]);
 
-            [$total, $filtered, $rows] = $dtq->paginate();
+            [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
             $rows->load(['product', 'location']);
             $rows->each(fn($r) => $this->addPackBreakdown($r, $r->product));
 
-            return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+            return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
                 return [
                     'no'             => $no,
                     'product'        => e(optional($row->product)->name ?? 'N/A'),
@@ -175,16 +173,17 @@ class ReportController extends Controller
 
         $dtq = (new DataTableQuery($base, $req))
             ->searchable(['lot_number'])
+            ->searchDates(['expiry_date'])
             ->searchRelations([
                 'product'  => ['name'],
                 'location' => ['name'],
             ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
         $rows->load(['product', 'location']);
         $rows->each(fn($r) => $this->addPackBreakdown($r, $r->product));
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
             return [
                 'no'             => $no,
                 'product'        => e(optional($row->product)->name ?? 'N/A'),
@@ -258,12 +257,18 @@ class ReportController extends Controller
 
         $dtq = (new DataTableQuery($base, $req))
             ->searchable(['reference', 'lot_number'])
-            ->searchRelations(['product' => ['name']]);
+            ->searchDates(['created_at'])
+            ->searchRelations([
+                'product'      => ['name'],
+                'fromLocation' => ['name'],
+                'toLocation'   => ['name'],
+                'user'         => ['name'],
+            ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
         $rows->each(fn($r) => $this->addPackBreakdown($r, $r->product));
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
             return [
                 'no'             => $no,
                 'date'           => $row->created_at ? $row->created_at->format('Y-m-d H:i') : 'N/A',
@@ -353,14 +358,18 @@ class ReportController extends Controller
             ->when($productId, fn($q) => $q->whereHas('items', fn($s) => $s->where('product_id', $productId)));
 
         $dtq = (new DataTableQuery($base, $req))
+            ->searchable(['status', 'diagnosis', 'notes'])
+            ->searchDates(['treatment_date', 'created_at'])
             ->searchRelations([
-                'patient' => ['full_name'],
-                'doctor'  => ['name'],
+                'patient'  => ['full_name'],
+                'location' => ['name'],
+                'doctor'   => ['name'],
+                'items.product' => ['name'],
             ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
             $itemsHtml = '<ul class="mb-0">';
             foreach ($row->items as $item) {
                 $itemsHtml .= '<li>' . e(optional($item->product)->name ?? 'N/A') . ': ' . e($item->quantity) . '</li>';
@@ -445,13 +454,15 @@ class ReportController extends Controller
             ->when($productId, fn($q) => $q->whereHas('items', fn($s) => $s->where('product_id', $productId)));
 
         $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['invoice_no'])
+            ->searchable(['invoice_no', 'status'])
+            ->searchDates(['created_at'])
             ->searchRelations([
                 'location' => ['name'],
                 'user'     => ['name'],
+                'items.product' => ['name'],
             ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
         $flat = collect();
         foreach ($rows as $sale) {
@@ -463,7 +474,7 @@ class ReportController extends Controller
             }
         }
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $flat, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $flat, function ($row, $no) {
             $sale = $row->sale;
             $item = $row->item;
 
@@ -517,10 +528,10 @@ class ReportController extends Controller
         $dtq = (new DataTableQuery($base, $req))
             ->searchRelations(['product' => ['name']]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
         $rows->load('product');
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
             return [
                 'no'             => $no,
                 'product'        => e(optional($row->product)->name ?? 'N/A'),
@@ -593,10 +604,16 @@ class ReportController extends Controller
             ->when($transactionType, fn($q) => $q->where('transaction_type', $transactionType));
 
         $dtq = (new DataTableQuery($base, $req))
-            ->searchable(['reference', 'lot_number'])
-            ->searchRelations(['product' => ['name']]);
+            ->searchable(['reference', 'lot_number', 'transaction_type', 'notes'])
+            ->searchDates(['expiry_date', 'created_at'])
+            ->searchRelations([
+                'product'      => ['name'],
+                'fromLocation' => ['name'],
+                'toLocation'   => ['name'],
+                'user'         => ['name'],
+            ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
         $rows->each(fn($r) => $this->addPackBreakdown($r, $r->product));
 
         $badgeMap = [
@@ -607,7 +624,7 @@ class ReportController extends Controller
             'receiving'   => 'secondary',
         ];
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) use ($badgeMap) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) use ($badgeMap) {
             $badge = $badgeMap[$row->transaction_type] ?? 'danger';
 
             return [
@@ -798,14 +815,15 @@ class ReportController extends Controller
 
         $dtq = (new DataTableQuery($base, $req))
             ->searchable(['lot_number'])
+            ->searchDates(['expiry_date'])
             ->searchRelations([
                 'product'  => ['name'],
                 'location' => ['name'],
             ]);
 
-        [$total, $filtered, $rows] = $dtq->paginate();
+        [$recordsTotal, $recordsFiltered, $rows] = $dtq->paginate();
 
-        return DataTableResponse::make($req->draw, $total, $filtered, $rows, function ($row, $no) {
+        return DataTableResponse::make($req->draw, $recordsTotal, $recordsFiltered, $rows, function ($row, $no) {
             $daysRemaining = Carbon::today()->diffInDays($row->expiry_date, false);
             $statusLabel = $daysRemaining < 0 ? 'EXPIRED' : ($daysRemaining <= 30 ? 'URGENT' : ($daysRemaining <= 60 ? 'SOON' : 'OK'));
             $badgeClass = $daysRemaining < 0 ? 'danger' : ($daysRemaining <= 30 ? 'warning' : ($daysRemaining <= 60 ? 'info' : 'primary'));

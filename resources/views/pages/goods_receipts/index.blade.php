@@ -407,12 +407,16 @@
     document.querySelectorAll('#add_items tr').forEach(initRow);
 
     $('#receiptsTable').DataTable({
-        processing: true, serverSide: true,
+        processing: true,
+        serverSide: true,
         dom: "<'row mb-2'<'col-md-6'B><'col-md-6'f>>" +
              "<'row'<'col-sm-12'tr>>" +
              "<'row mt-2'<'col-sm-5'i><'col-sm-7'p>>",
         buttons: ["csv", "excel", "pdf", "print"],
-        ajax: { url: '{{ route('goods-receipts.data') }}', type: 'GET' },
+        ajax: {
+            url: '{{ route('goods-receipts.data') }}',
+            type: 'GET'
+        },
         columns: [
             { data: 'no',         orderable: false, searchable: false },
             { data: 'reference',  name: 'reference_number' },
